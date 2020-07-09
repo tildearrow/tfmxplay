@@ -97,13 +97,13 @@ class TFMXPlayer {
     int pos;
     int apos;
     int seek;
-    unsigned short len;
-    unsigned short loop;
+    unsigned int len;
     unsigned short freq;
-    char vol;
-    TFMXChan(): pos(0), seek(0), len(0), freq(0), vol(0) {}
+    signed char vol;
+    bool on;
+    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), on(false) {}
   } chan[8]; 
-  char* smpl;
+  signed char* smpl;
   size_t smplLen;
   TFMXHeader head;
   TFMXOrders track[128][8];
@@ -119,6 +119,8 @@ class TFMXPlayer {
     int tim;
     int vol;
     int note;
+    int oldnote;
+    bool waitingDMA;
   } cstat[8];
   
   struct {
@@ -132,11 +134,13 @@ class TFMXPlayer {
   bool updateTrack(int tr);
   void updateRow(int row);
   void nextTick();
+  void runMacro(int i);
+  void handleLoop(int c);
   public:
     void nextSample(short* l, short* r);
     int play(int song);
     int stop();
     bool load(const char* mdat, const char* smpl);
-    void playMacro(char macro, char note, char vol, unsigned char c, int trans);
+    void playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans);
     TFMXPlayer(): ciaVal(59659) {}
 };

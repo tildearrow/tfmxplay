@@ -12,7 +12,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   fseek(f,0,SEEK_END);
   smplLen=ftell(f);
   fseek(f,0,SEEK_SET);
-  smpl=new char[smplLen];
+  smpl=new signed char[smplLen];
   fread(smpl,1,smplLen,f);
   fclose(f);
 
@@ -108,7 +108,7 @@ unsigned short getPeriod(unsigned char note) {
   return 2440.6f/(pow(2,(float)note/12.0f));
 }
 
-void TFMXPlayer::playMacro(char macro, char note, char vol, unsigned char c, int trans) {
+void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans) {
   /*
   chan[c].pos=25000;
   chan[c].len=25000+2048;
@@ -119,6 +119,7 @@ void TFMXPlayer::playMacro(char macro, char note, char vol, unsigned char c, int
   cstat[c].pos=0;
   cstat[c].tim=0;
   cstat[c].vol=vol;
+  cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
 }
 
@@ -130,6 +131,8 @@ void TFMXPlayer::updateRow(int row) {
     tstat[i].pos=-1;
     tstat[i].index=track[curRow][i].pat;
     tstat[i].trans=track[curRow][i].trans;
+
+    if (tstat[i].index==0xfe) chan[tstat[i].trans].on=false;
   }
   curTick=0;
   nextTick();
@@ -197,77 +200,79 @@ bool TFMXPlayer::updateTrack(int tr) {
   return false;
 }
 
+void TFMXPlayer::runMacro(int i) {
+  TFMXMacroData m;
+  cstat[i].tim=0;
+  cstat[i].waitingDMA=false;
+  while (true) {
+    m=macro[cstat[i].index][cstat[i].pos];
+    cstat[i].pos++;
+    switch (m.op) {
+      case mOffReset:
+        chan[i].freq=0;
+        chan[i].pos=0;
+        chan[i].apos=0;
+        chan[i].on=false;
+        return;
+        break;
+      case mSetBegin:
+        chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
+        chan[i].apos=0;
+        break;
+      case mSetLen:
+        chan[i].len=(m.data[1]<<8)|(m.data[2]);
+        break;
+      case mAddVol:
+        chan[i].vol=m.data[2]+cstat[i].vol;
+        break;
+      case mSetNote:
+        // TODO detune
+        chan[i].freq=getPeriod(m.data[0]+6);
+        break;
+      case mAddNote:
+        chan[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+6);
+        break;
+      case mSetPrevNote:
+        chan[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+6);
+        break;
+      case mOn:
+        chan[i].on=true;
+        return;
+        break;
+      case mWait:
+        cstat[i].tim=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
+        return;
+        break;
+      case mWaitUp:
+        cstat[i].tim=2147483647;
+        return;
+        break;
+      case mStop:
+        cstat[i].tim=2147483647;
+        return;
+        break;
+      case mSetLoop:
+        //chan[i].loop=(m.data[1]<<8)|(m.data[2]);
+        break;
+      case mWaitSample:
+        cstat[i].tim=2147483647;
+        cstat[i].waitingDMA=true;
+        return;
+        break;
+      default:
+        printf("%d: unhandled opcode %x\n",i,m.op);
+        return;
+        break;
+    }
+  }
+}
+
 void TFMXPlayer::nextTick() {
   // update macros
-  bool getMeOut;
   for (int i=0; i<4; i++) {
     if (cstat[i].index!=-1) {
-      TFMXMacroData m;
       if (--cstat[i].tim>=0) continue;
-      getMeOut=false;
-      cstat[i].tim=0;
-      while (!getMeOut) {
-        m=macro[cstat[i].index][cstat[i].pos];
-        switch (m.op) {
-          case mOffReset:
-            chan[i].freq=0;
-            chan[i].pos=0;
-            chan[i].apos=0;
-            chan[i].loop=0xffff;
-            getMeOut=true;
-            break;
-          case mSetBegin:
-            chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
-            chan[i].apos=0;
-            break;
-          case mSetLen:
-            chan[i].len=(m.data[1]<<8)|(m.data[2]);
-            break;
-          case mAddVol:
-            chan[i].vol=m.data[2]+cstat[i].vol;
-            break;
-          case mSetNote:
-            // TODO detune
-            chan[i].freq=getPeriod(m.data[0]+6);
-            break;
-          case mAddNote:
-            chan[i].freq=getPeriod(cstat[i].note+(char)m.data[0]+6);
-            break;
-          case mSetPrevNote:
-            chan[i].freq=getPeriod(cstat[i].note+(char)m.data[0]+6);
-            break;
-          case mOn:
-            // TODO
-            chan[i].apos=0;
-            getMeOut=true;
-            break;
-          case mWait:
-            cstat[i].tim=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
-            getMeOut=true;
-            break;
-          case mWaitUp:
-            cstat[i].tim=2147483647;
-            getMeOut=true;
-            break;
-          case mStop:
-            cstat[i].tim=2147483647;
-            getMeOut=true;
-            break;
-          case mSetLoop:
-            chan[i].loop=(m.data[1]<<8)|(m.data[2]);
-            break;
-          case mWaitSample:
-            printf("warning: wait on DMA not done yet\n");
-            cstat[i].tim=2147483647;
-            getMeOut=true;
-            break;
-          default:
-            printf("%d: unhandled opcode %x\n",i,m.op);
-            getMeOut=true;
-            break;
-        }
-        cstat[i].pos++;
-      }
+      runMacro(i);
     }
   }
   if (--curTick<0) {
@@ -286,6 +291,13 @@ void TFMXPlayer::nextTick() {
   }
 }
 
+void TFMXPlayer::handleLoop(int c) {
+  if (cstat[c].waitingDMA) {
+    printf("%d: DMA reach\n",c);
+    runMacro(c);
+  }
+}
+
 void TFMXPlayer::nextSample(short* l, short* r) {
   int la, ra;
   la=0; ra=0;
@@ -295,14 +307,15 @@ void TFMXPlayer::nextSample(short* l, short* r) {
   }
   
   for (int i=0; i<4; i++) {
+    if (!chan[i].on) continue;
     if (chan[i].freq) {
       if (--chan[i].seek<0) {
         chan[i].seek=chan[i].freq;
         chan[i].apos++;
-        if (chan[i].apos>=chan[i].len) {
-          if (chan[i].loop!=0xffff) {
-            chan[i].apos=chan[i].loop;
-          }
+        if (chan[i].apos>=(chan[i].len*2)) {
+          // interrupt
+          handleLoop(i);
+          chan[i].apos=0;
         }
       }
     }
