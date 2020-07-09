@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <SDL2/SDL.h>
+
+#include "blip_buf.h"
+#include "tfmx.h"
+
+blip_buffer_t* bb[2];
+int prevSample[2]={0,0};
+short bbOut[2][32768];
+
+SDL_AudioDeviceID ai;
+SDL_AudioSpec ac;
+SDL_AudioSpec ar;
+
+bool quit;
+
+int sr;
+double targetSR;
+
+TFMXPlayer p;
+
+static void process(void* userdata, Uint8* stream, int len) {
+  short* buf[2];
+  short temp[2];
+  int wc;
+  int writable;
+  unsigned int nframes=len/(2*ar.channels);
+  buf[0]=(short*)stream;
+  buf[1]=&buf[0][1];
+  
+  int runtotal=blip_clocks_needed(bb[0],nframes);
+
+  for (size_t i=0; i<runtotal; i++) {
+    p.nextSample(&temp[0],&temp[1]);
+
+    blip_add_delta(bb[0],i,(short)(temp[0]-prevSample[0]));
+    blip_add_delta(bb[1],i,(short)(temp[1]-prevSample[1]));
+    prevSample[0]=temp[0];
+    prevSample[1]=temp[1];
+  }
+
+  blip_end_frame(bb[0],runtotal);
+  blip_end_frame(bb[1],runtotal);
+
+  blip_read_samples(bb[0],bbOut[0],nframes,0);
+  blip_read_samples(bb[1],bbOut[1],nframes,0);
+
+  for (size_t i=0; i<nframes; i++) {
+    buf[0][i*ar.channels]=bbOut[0][i];
+    buf[1][i*ar.channels]=bbOut[1][i];
+  }
+}
+
+int main(int argc, char** argv) {
+  if (argc<3) {
+    printf("usage: %s mdat.file smpl.file\n",argv[0]);
+    return 1;
+  }
+  if (!p.load(argv[1],argv[2])) {
+    printf("could not open song...\n");
+    return 1;
+  }
+  p.play(0);
+  printf("opening audio\n");
+  
+  SDL_Init(SDL_INIT_AUDIO);
+
+  ac.freq=44100;
+  ac.format=AUDIO_S16;
+  ac.channels=2;
+  ac.samples=1024;
+  ac.callback=process;
+  ac.userdata=NULL;
+  ai=SDL_OpenAudioDevice(SDL_GetAudioDeviceName(0,0),0,&ac,&ar,SDL_AUDIO_ALLOW_ANY_CHANGE);
+  sr=ar.freq;
+  targetSR=3579545;
+
+  bb[0]=blip_new(32768);
+  bb[1]=blip_new(32768);
+  blip_set_rates(bb[0],targetSR,sr);
+  blip_set_rates(bb[1],targetSR,sr);
+
+  printf("running.\n");
+  SDL_PauseAudioDevice(ai,0);
+  
+  while (!quit) {
+    usleep(50000);
+  }
+
+  SDL_CloseAudioDevice(ai);
+  return 0;
+}
