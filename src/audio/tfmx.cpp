@@ -103,6 +103,11 @@ int TFMXPlayer::play(int song) {
   return curRow;
 }
 
+int TFMXPlayer::stop() {
+  exit(0);
+  return curRow;
+}
+
 // 1400.0f
 unsigned short getPeriod(unsigned char note) {
   return 2440.6f/(pow(2,(float)note/12.0f));
@@ -126,7 +131,29 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
 void TFMXPlayer::updateRow(int row) {
   curRow=row;
   printf("Next Row!\n");
+  if (track[curRow][0].pat==0xef && track[curRow][0].trans==0xfe) {
+    printf("EFFE!!!\n");
+    switch (track[curRow][1].trans) {
+      case 0: // stop
+        stop();
+        return;
+        break;
+      case 1: // jump
+        updateRow(track[curRow][2].trans);
+        return;
+        break;
+      case 2: // tempo
+        break;
+      case 3: // volslide
+        break;
+      case 4: // volslide
+        break;
+    }
+    updateRow(row+1);
+    return;
+  }
   for (int i=0; i<8; i++) {
+    if (track[curRow][i].pat==0x80) continue;
     tstat[i].tim=0;
     tstat[i].pos=-1;
     tstat[i].index=track[curRow][i].pat;
@@ -213,6 +240,8 @@ void TFMXPlayer::runMacro(int i) {
         chan[i].pos=0;
         chan[i].apos=0;
         chan[i].on=false;
+        cstat[i].addBeginC=0;
+        cstat[i].addBeginDir=false;
         return;
         break;
       case mSetBegin:
@@ -251,6 +280,12 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].tim=2147483647;
         return;
         break;
+      case mAddBegin:
+        cstat[i].addBegin=m.data[0];
+        cstat[i].addBeginC=m.data[0];
+        cstat[i].addBeginAmt=(m.data[1]<<8)|(m.data[2]);
+        cstat[i].addBeginDir=false;
+        break;
       case mSetLoop:
         //chan[i].loop=(m.data[1]<<8)|(m.data[2]);
         break;
@@ -271,6 +306,17 @@ void TFMXPlayer::nextTick() {
   // update macros
   for (int i=0; i<4; i++) {
     if (cstat[i].index!=-1) {
+      if (cstat[i].addBeginC>0) {
+        if (cstat[i].addBeginDir) {
+          chan[i].pos-=cstat[i].addBeginAmt;
+        } else {
+          chan[i].pos+=cstat[i].addBeginAmt;
+        }
+        if (--cstat[i].addBegin<0) {
+          cstat[i].addBegin=cstat[i].addBeginC;
+          cstat[i].addBeginDir=!cstat[i].addBeginDir;
+        }
+      }
       if (--cstat[i].tim>=0) continue;
       runMacro(i);
     }

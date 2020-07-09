@@ -113,7 +113,7 @@ class TFMXPlayer {
   int macroPoint[128];
   int ciaVal, ciaCount;
   
-  struct {
+  struct TFMXCStat {
     int index;
     int pos;
     int tim;
@@ -121,6 +121,12 @@ class TFMXPlayer {
     int note;
     int oldnote;
     bool waitingDMA;
+
+    int addBegin;
+    int addBeginC;
+    int addBeginAmt;
+    bool addBeginDir;
+    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false) {}
   } cstat[8];
   
   struct {

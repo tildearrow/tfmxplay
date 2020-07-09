@@ -53,15 +53,20 @@ static void process(void* userdata, Uint8* stream, int len) {
 }
 
 int main(int argc, char** argv) {
+  int songid;
   if (argc<3) {
-    printf("usage: %s mdat.file smpl.file\n",argv[0]);
+    printf("usage: %s mdat.file smpl.file [song]\n",argv[0]);
     return 1;
+  }
+  songid=0;
+  if (argc>3) {
+    songid=atoi(argv[3]);
   }
   if (!p.load(argv[1],argv[2])) {
     printf("could not open song...\n");
     return 1;
   }
-  p.play(0);
+  p.play(songid);
   printf("opening audio\n");
   
   SDL_Init(SDL_INIT_AUDIO);
