@@ -110,7 +110,7 @@ int TFMXPlayer::stop() {
 
 // 1400.0f
 unsigned short getPeriod(unsigned char note) {
-  return 2440.6f/(pow(2,(float)note/12.0f));
+  return 2034/(pow(2,(float)note/12.0f));
 }
 
 void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans) {
@@ -245,24 +245,32 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mSetBegin:
-        chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
-        chan[i].apos=0;
+        if (chan[i].on) {
+          cstat[i].postDMAPos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
+        } else {
+          chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
+          chan[i].apos=0;
+        }
         break;
       case mSetLen:
-        chan[i].len=(m.data[1]<<8)|(m.data[2]);
+        if (chan[i].on) {
+          cstat[i].postDMALen=(m.data[1]<<8)|(m.data[2]);
+        } else {
+          chan[i].len=(m.data[1]<<8)|(m.data[2]);
+        }
         break;
       case mAddVol:
         chan[i].vol=m.data[2]+cstat[i].vol;
         break;
       case mSetNote:
         // TODO detune
-        chan[i].freq=getPeriod(m.data[0]+6);
+        chan[i].freq=getPeriod(m.data[0]+3);
         break;
       case mAddNote:
-        chan[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+6);
+        chan[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
         break;
       case mSetPrevNote:
-        chan[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+6);
+        chan[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+3);
         break;
       case mOn:
         chan[i].on=true;
@@ -281,13 +289,21 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mAddBegin:
+        // TODO: corruption bug!
         cstat[i].addBegin=m.data[0];
         cstat[i].addBeginC=m.data[0];
-        cstat[i].addBeginAmt=(m.data[1]<<8)|(m.data[2]);
-        cstat[i].addBeginDir=false;
+        cstat[i].addBeginAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
+        if (cstat[i].addBeginAmt<0) {
+          cstat[i].addBeginAmt=-cstat[i].addBeginAmt;
+          cstat[i].addBeginDir=true;
+        } else {
+          cstat[i].addBeginDir=false;
+        }
+        printf("%.2x %.2x %.2x %.2x... %d\n",m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt);
         break;
       case mSetLoop:
-        //chan[i].loop=(m.data[1]<<8)|(m.data[2]);
+        cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
+        cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
@@ -338,6 +354,14 @@ void TFMXPlayer::nextTick() {
 }
 
 void TFMXPlayer::handleLoop(int c) {
+  if (cstat[c].postDMAPos!=-1) {
+    chan[c].pos=cstat[c].postDMAPos;
+    cstat[c].postDMAPos=-1;
+  }
+  if (cstat[c].postDMALen!=-1) {
+    chan[c].len=cstat[c].postDMALen;
+    cstat[c].postDMALen=-1;
+  }
   if (cstat[c].waitingDMA) {
     printf("%d: DMA reach\n",c);
     runMacro(c);
@@ -365,8 +389,17 @@ void TFMXPlayer::nextSample(short* l, short* r) {
         }
       }
     }
-    la+=smpl[chan[i].pos+chan[i].apos]*chan[i].vol;
+    if (i==0 || i==3) {
+      la+=smpl[chan[i].pos+chan[i].apos]*chan[i].vol<<1;
+    } else {
+      ra+=smpl[chan[i].pos+chan[i].apos]*chan[i].vol<<1;
+    }
   }
   *l=la;
-  *r=la;
+  *r=ra;
 }
+
+void TFMXPlayer::setCIAVal(int val) {
+  ciaVal=val;
+}
+

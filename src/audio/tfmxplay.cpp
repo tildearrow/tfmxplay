@@ -13,7 +13,7 @@ SDL_AudioDeviceID ai;
 SDL_AudioSpec ac;
 SDL_AudioSpec ar;
 
-bool quit;
+bool quit, ntsc;
 
 int sr;
 double targetSR;
@@ -47,13 +47,14 @@ static void process(void* userdata, Uint8* stream, int len) {
   blip_read_samples(bb[1],bbOut[1],nframes,0);
 
   for (size_t i=0; i<nframes; i++) {
-    buf[0][i*ar.channels]=bbOut[0][i];
-    buf[1][i*ar.channels]=bbOut[1][i];
+    buf[0][i*ar.channels]=bbOut[0][i]+(bbOut[1][i]>>2);
+    buf[1][i*ar.channels]=bbOut[1][i]+(bbOut[0][i]>>2);
   }
 }
 
 int main(int argc, char** argv) {
   int songid;
+  ntsc=true;
   if (argc<3) {
     printf("usage: %s mdat.file smpl.file [song]\n",argv[0]);
     return 1;
@@ -79,7 +80,13 @@ int main(int argc, char** argv) {
   ac.userdata=NULL;
   ai=SDL_OpenAudioDevice(SDL_GetAudioDeviceName(0,0),0,&ac,&ar,SDL_AUDIO_ALLOW_ANY_CHANGE);
   sr=ar.freq;
-  targetSR=3579545;
+  if (ntsc) {
+    targetSR=3579545;
+    p.setCIAVal(59659);
+  } else {
+    targetSR=3546895;
+    p.setCIAVal(70937);
+  }
 
   bb[0]=blip_new(32768);
   bb[1]=blip_new(32768);

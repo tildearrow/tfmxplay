@@ -126,7 +126,11 @@ class TFMXPlayer {
     int addBeginC;
     int addBeginAmt;
     bool addBeginDir;
-    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false) {}
+    
+    int postDMAPos;
+    int postDMALen;
+    
+    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), postDMAPos(-1), postDMALen(1) {}
   } cstat[8];
   
   struct {
@@ -144,6 +148,7 @@ class TFMXPlayer {
   void handleLoop(int c);
   public:
     void nextSample(short* l, short* r);
+    void setCIAVal(int val);
     int play(int song);
     int stop();
     bool load(const char* mdat, const char* smpl);
