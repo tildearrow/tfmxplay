@@ -65,7 +65,7 @@ static void process(void* userdata, Uint8* stream, int len) {
 
 int main(int argc, char** argv) {
   int songid;
-  ntsc=true;
+  ntsc=false;
   if (argc<3) {
     printf("usage: %s mdat.file smpl.file [song]\n",argv[0]);
     return 1;
