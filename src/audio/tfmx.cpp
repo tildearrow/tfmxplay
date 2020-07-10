@@ -87,10 +87,6 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   }
   
   fclose(f);
-  
-  chan[0].len=smplLen;
-  chan[0].freq=1712/4;
-  chan[0].vol=64;
 
   return true;
 }
@@ -114,18 +110,15 @@ unsigned short getPeriod(unsigned char note) {
 }
 
 void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans) {
-  /*
-  chan[c].pos=25000;
-  chan[c].len=25000+2048;
-  chan[c].freq=getPeriod((note&63)+trans);
-  chan[c].vol=64;*/
-  
   cstat[c].index=macro;
   cstat[c].pos=0;
   cstat[c].tim=0;
   cstat[c].vol=vol;
   cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
+  cstat[c].waitingDMA=false;
+  cstat[c].waitingKeyUp=false;
+  cstat[c].keyon=true;
 }
 
 void TFMXPlayer::updateRow(int row) {
@@ -193,10 +186,21 @@ bool TFMXPlayer::updateTrack(int tr) {
           getMeOut=true;
           break;
         case pKeyUp:
+          cstat[item.chan].keyon=false;
           break;
         case pVibr:
+          cstat[item.chan].vibTimeC=item.ins;
+          cstat[item.chan].vibTime=item.ins>>1;
+          cstat[item.chan].vibAmt=item.detune;
+          cstat[item.chan].vibDir=false;
+          cstat[item.chan].detune=0;
           break;
         case pEnve:
+          cstat[item.chan].envActive=true;
+          cstat[item.chan].envAmt=item.ins;
+          cstat[item.chan].envTime=item.vol+1;
+          cstat[item.chan].envTimeC=item.vol+1;
+          cstat[item.chan].envTarget=item.detune;
           break;
         case pGsPt:
           break;
@@ -231,17 +235,26 @@ void TFMXPlayer::runMacro(int i) {
   TFMXMacroData m;
   cstat[i].tim=0;
   cstat[i].waitingDMA=false;
+  cstat[i].waitingKeyUp=false;
+  if (cstat[i].offReset) {
+    cstat[i].offReset=false;
+    cstat[i].freq=0;
+    cstat[i].detune=0;
+    chan[i].pos=0;
+    chan[i].apos=0;
+    chan[i].on=false;
+    cstat[i].addBeginC=0;
+    cstat[i].addBeginDir=false;
+    cstat[i].vibTimeC=0;
+    cstat[i].vibDir=false;
+    cstat[i].envActive=false;
+  }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
-        chan[i].freq=0;
-        chan[i].pos=0;
-        chan[i].apos=0;
-        chan[i].on=false;
-        cstat[i].addBeginC=0;
-        cstat[i].addBeginDir=false;
+        cstat[i].offReset=true;
         return;
         break;
       case mSetBegin:
@@ -259,29 +272,54 @@ void TFMXPlayer::runMacro(int i) {
           chan[i].len=(m.data[1]<<8)|(m.data[2]);
         }
         break;
+      case mLoop:
+        cstat[i].pos=((m.data[1]<<8)|(m.data[2]))-1;
+        break;
       case mAddVol:
         chan[i].vol=m.data[2]+cstat[i].vol;
         break;
+      case mSetVol:
+        chan[i].vol=m.data[0];
+        break;
       case mSetNote:
         // TODO detune
-        chan[i].freq=getPeriod(m.data[0]+3);
+        cstat[i].freq=getPeriod(m.data[0]+3);
+        return;
         break;
       case mAddNote:
-        chan[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+        cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+        return;
         break;
       case mSetPrevNote:
-        chan[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+3);
+        cstat[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+3);
+        return;
         break;
       case mOn:
         chan[i].on=true;
-        return;
+        break;
+      case mVibrato:
+        cstat[i].vibTimeC=m.data[0];
+        cstat[i].vibTime=m.data[0]>>1;
+        cstat[i].vibAmt=m.data[2];
+        cstat[i].vibDir=false;
+        cstat[i].detune=0;
+        break;
+      case mEnv:
+        cstat[i].envActive=true;
+        cstat[i].envAmt=m.data[0];
+        cstat[i].envTime=m.data[1];
+        cstat[i].envTimeC=m.data[1];
+        cstat[i].envTarget=m.data[2];
         break;
       case mWait:
         cstat[i].tim=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
         return;
         break;
       case mWaitUp:
-        cstat[i].tim=2147483647;
+        printf("%d: waiting on key up.\n",i);
+        if (cstat[i].keyon) {
+          cstat[i].waitingKeyUp=true;
+        }
         return;
         break;
       case mStop:
@@ -333,9 +371,43 @@ void TFMXPlayer::nextTick() {
           cstat[i].addBeginDir=!cstat[i].addBeginDir;
         }
       }
+      if (cstat[i].vibTimeC>0) {
+        if (cstat[i].vibDir) {
+          cstat[i].detune+=cstat[i].vibAmt;
+        } else {
+          cstat[i].detune-=cstat[i].vibAmt;
+        }
+        if (--cstat[i].vibTime<=0) {
+          cstat[i].vibTime=cstat[i].vibTimeC;
+          cstat[i].vibDir=!cstat[i].vibDir;
+        }
+      }
+      if (cstat[i].envActive) {
+        if (--cstat[i].envTime<0) {
+          cstat[i].envTime=cstat[i].envTimeC;
+          if (chan[i].vol>cstat[i].envTarget) {
+            chan[i].vol-=cstat[i].envAmt;
+            if (chan[i].vol<=cstat[i].envTarget) {
+              chan[i].vol=cstat[i].envTarget;
+              cstat[i].envActive=false;
+            }
+          } else {
+            chan[i].vol+=cstat[i].envAmt;
+            if (chan[i].vol>=cstat[i].envTarget) {
+              chan[i].vol=cstat[i].envTarget;
+              cstat[i].envActive=false;
+            }
+          }
+        }
+      }
+      if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
       if (--cstat[i].tim>=0) continue;
       runMacro(i);
     }
+  }
+  // update freqs
+  for (int i=0; i<4; i++) {
+    chan[i].freq=(float)cstat[i].freq*pow(2,(float)cstat[i].detune/(6*256.0f));
   }
   if (--curTick<0) {
     curTick=speed;

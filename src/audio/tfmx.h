@@ -123,16 +123,32 @@ class TFMXPlayer {
     int note;
     int oldnote;
     bool waitingDMA;
+    bool waitingKeyUp;
+    bool keyon;
+    bool offReset;
 
     int addBegin;
     int addBeginC;
     int addBeginAmt;
     bool addBeginDir;
+
+    int vibTime;
+    int vibTimeC;
+    int vibAmt;
+    bool vibDir;
+
+    int envTarget;
+    int envAmt;
+    int envTime;
+    int envTimeC;
+    bool envActive;
     
     int postDMAPos;
     int postDMALen;
+
+    short freq, detune;
     
-    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), postDMAPos(-1), postDMALen(1) {}
+    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), waitingKeyUp(false), keyon(false), offReset(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), vibTime(0), vibTimeC(0), vibAmt(0), vibDir(false), envTarget(0), envAmt(0), envTime(0), envActive(false), postDMAPos(-1), postDMALen(1), freq(0), detune(0) {}
   } cstat[8];
   
   struct {
