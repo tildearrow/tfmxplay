@@ -276,7 +276,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].pos=((m.data[1]<<8)|(m.data[2]))-1;
         break;
       case mAddVol:
-        chan[i].vol=m.data[2]+cstat[i].vol;
+        chan[i].vol=m.data[2]+cstat[i].vol*3;
         break;
       case mSetVol:
         chan[i].vol=m.data[0];
@@ -408,6 +408,7 @@ void TFMXPlayer::nextTick() {
   // update freqs
   for (int i=0; i<4; i++) {
     chan[i].freq=(float)cstat[i].freq*pow(2,(float)cstat[i].detune/(6*256.0f));
+    if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
   }
   if (--curTick<0) {
     curTick=speed;
