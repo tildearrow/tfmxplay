@@ -371,16 +371,37 @@ void TFMXPlayer::handleLoop(int c) {
 void TFMXPlayer::nextSample(short* l, short* r) {
   int la, ra;
   la=0; ra=0;
+#ifdef HLE
+  fractAccum+=hleRate;
+  intAccum=fractAccum;
+  fractAccum-=intAccum;
+
+  ciaCount-=intAccum;
+  if (ciaCount<0) {
+    ciaCount+=ciaVal;
+    nextTick();
+  }
+#else
   if (--ciaCount<0) {
     ciaCount=ciaVal;
     nextTick();
   }
+#endif
   
   for (int i=0; i<4; i++) {
     if (!chan[i].on) continue;
     if (chan[i].freq) {
-      if (--chan[i].seek<0) {
+#ifdef HLE
+      chan[i].seek-=intAccum;
+#else
+      --chan[i].seek;
+#endif
+      if (chan[i].seek<0) {
+#ifdef HLE
+        chan[i].seek+=chan[i].freq;
+#else
         chan[i].seek=chan[i].freq;
+#endif
         chan[i].apos++;
         if (chan[i].apos>=(chan[i].len*2)) {
           // interrupt

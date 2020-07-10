@@ -3,6 +3,8 @@
 #include <math.h>
 #include <arpa/inet.h>
 
+#define HLE
+
 struct TFMXHeader {
   char ident[10];
   short undoc1;
@@ -140,6 +142,9 @@ class TFMXPlayer {
     int trans;
   } tstat[8];
   int curSong, curRow, curTick, speed;
+
+  float fractAccum;
+  int intAccum;
   
   bool updateTrack(int tr);
   void updateRow(int row);
@@ -147,11 +152,12 @@ class TFMXPlayer {
   void runMacro(int i);
   void handleLoop(int c);
   public:
+    float hleRate;
     void nextSample(short* l, short* r);
     void setCIAVal(int val);
     int play(int song);
     int stop();
     bool load(const char* mdat, const char* smpl);
     void playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans);
-    TFMXPlayer(): ciaVal(59659) {}
+    TFMXPlayer(): ciaVal(59659), fractAccum(0), intAccum(0), hleRate(1) {}
 };
