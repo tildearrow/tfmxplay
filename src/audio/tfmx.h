@@ -165,6 +165,7 @@ class TFMXPlayer {
   bool updateTrack(int tr);
   void updateRow(int row);
   void nextTick();
+  void reset(int i);
   void runMacro(int i);
   void handleLoop(int c);
   public:

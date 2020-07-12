@@ -94,6 +94,11 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
 int TFMXPlayer::play(int song) {
   curSong=song;
   speed=head.songSpeed[song];
+
+  for (int i=0; i<4; i++) {
+    reset(i);
+  }
+
   updateRow(head.songStart[curSong]);
   
   return curRow;
@@ -147,7 +152,7 @@ void TFMXPlayer::updateRow(int row) {
   }
   for (int i=0; i<8; i++) {
     if (track[curRow][i].pat==0x80) continue;
-    tstat[i].tim=0;
+    tstat[i].tim=-1;
     tstat[i].pos=-1;
     tstat[i].index=track[curRow][i].pat;
     tstat[i].trans=track[curRow][i].trans;
@@ -231,31 +236,39 @@ bool TFMXPlayer::updateTrack(int tr) {
   return false;
 }
 
+void TFMXPlayer::reset(int i) {
+  cstat[i].offReset=false;
+  cstat[i].freq=0;
+  cstat[i].detune=0;
+  chan[i].pos=0;
+  chan[i].apos=0;
+  chan[i].on=false;
+  cstat[i].addBeginC=0;
+  cstat[i].addBeginDir=false;
+  cstat[i].vibTimeC=0;
+  cstat[i].vibDir=false;
+  cstat[i].envActive=false;
+}
+
 void TFMXPlayer::runMacro(int i) {
   TFMXMacroData m;
   cstat[i].tim=0;
   cstat[i].waitingDMA=false;
   cstat[i].waitingKeyUp=false;
   if (cstat[i].offReset) {
-    cstat[i].offReset=false;
-    cstat[i].freq=0;
-    cstat[i].detune=0;
-    chan[i].pos=0;
-    chan[i].apos=0;
-    chan[i].on=false;
-    cstat[i].addBeginC=0;
-    cstat[i].addBeginDir=false;
-    cstat[i].vibTimeC=0;
-    cstat[i].vibDir=false;
-    cstat[i].envActive=false;
+    reset(i);
   }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
-        cstat[i].offReset=true;
-        return;
+        if (m.data[0]) {
+          reset(i);
+        } else {
+          cstat[i].offReset=true;
+          return;
+        }
         break;
       case mSetBegin:
         if (chan[i].on) {

@@ -110,7 +110,8 @@ int main(int argc, char** argv) {
   SDL_PauseAudioDevice(ai,0);
   
   while (!quit) {
-    usleep(50000);
+    getchar();
+    p.playMacro(rand()%48,20,15,2,0);
   }
 
   SDL_CloseAudioDevice(ai);
