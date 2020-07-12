@@ -260,9 +260,11 @@ void TFMXPlayer::runMacro(int i) {
       case mSetBegin:
         if (chan[i].on) {
           cstat[i].postDMAPos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
+          printf("%d: call to delayed pos (%d)\n",i,cstat[i].postDMAPos);
         } else {
           chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
           chan[i].apos=0;
+          printf("%d: call to pos (%d)\n",i,chan[i].pos);
         }
         break;
       case mSetLen:
@@ -273,7 +275,8 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mLoop:
-        cstat[i].pos=((m.data[1]<<8)|(m.data[2]))-1;
+        printf("%d: call to loop\n",i);
+        //cstat[i].pos=((m.data[1]<<8)|(m.data[2]))-1;
         break;
       case mAddVol:
         chan[i].vol=m.data[2]+cstat[i].vol*3;
@@ -340,8 +343,11 @@ void TFMXPlayer::runMacro(int i) {
         printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
-        cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
-        cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
+        if (cstat[i].addBeginC<=0) {
+          cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
+          cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
+          printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
+        }
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
