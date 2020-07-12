@@ -337,7 +337,7 @@ void TFMXPlayer::runMacro(int i) {
         } else {
           cstat[i].addBeginDir=false;
         }
-        printf("%.2x %.2x %.2x %.2x... %d\n",m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt);
+        printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
         cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
