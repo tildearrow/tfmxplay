@@ -199,6 +199,7 @@ bool TFMXPlayer::updateTrack(int tr) {
           cstat[item.chan].vibAmt=item.detune;
           cstat[item.chan].vibDir=false;
           cstat[item.chan].detune=0;
+          printf("vibrato!\n");
           break;
         case pEnve:
           cstat[item.chan].envActive=true;
@@ -297,7 +298,6 @@ void TFMXPlayer::runMacro(int i) {
         break;
       case mLoop:
         printf("%d: call to loop\n",i);
-        //cstat[i].pos=((m.data[1]<<8)|(m.data[2]))-1;
         break;
       case mAddVol:
         chan[i].vol=m.data[2]+cstat[i].vol*3;
@@ -375,7 +375,7 @@ void TFMXPlayer::runMacro(int i) {
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
-        cstat[i].waitingDMA=(m.data[1]<<8)|(m.data[2]);
+        cstat[i].waitingDMA=((m.data[1]<<8)|(m.data[2]))+1;
         return;
         break;
       default:
