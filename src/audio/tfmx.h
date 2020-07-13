@@ -127,6 +127,7 @@ class TFMXPlayer {
     bool waitingKeyUp;
     bool keyon;
     bool offReset;
+    bool gonnaLoop;
 
     int addBegin;
     int addBeginC;
@@ -151,14 +152,16 @@ class TFMXPlayer {
 
     short freq, detune;
     
-    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), waitingKeyUp(false), keyon(false), offReset(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), vibTime(0), vibTimeC(0), vibAmt(0), vibDir(false), envTarget(0), envAmt(0), envTime(0), envActive(false), postDMAPos(-1), postDMALen(1), freq(0), detune(0) {}
+    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), waitingKeyUp(false), keyon(false), offReset(false), gonnaLoop(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), vibTime(0), vibTimeC(0), vibAmt(0), vibDir(false), envTarget(0), envAmt(0), envTime(0), envActive(false), postDMAPos(-1), postDMALen(1), freq(0), detune(0) {}
   } cstat[8];
   
-  struct {
+  struct TFMXTStat {
     int index;
     int pos;
     int tim;
     int trans;
+
+    TFMXTStat(): index(255), pos(0), tim(0), trans(0) {}
   } tstat[8];
   int curSong, curRow, curTick, speed;
 

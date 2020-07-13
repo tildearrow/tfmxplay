@@ -178,7 +178,7 @@ bool TFMXPlayer::updateTrack(int tr) {
           return true;
           break;
         case pLoop:
-          tstat[tr].pos=-1;
+          tstat[tr].pos=-1;;
           break;
         case pJump:
           break;
@@ -247,7 +247,8 @@ void TFMXPlayer::reset(int i) {
   chan[i].pos=0;
   chan[i].apos=0;
   chan[i].on=false;
-  chan[i].looping=false;
+  chan[i].looping=true;
+  cstat[i].gonnaLoop=false;
   cstat[i].addBeginC=0;
   cstat[i].addBeginDir=false;
   cstat[i].vibTimeC=0;
@@ -347,6 +348,9 @@ void TFMXPlayer::runMacro(int i) {
         break;
       case mStop:
         cstat[i].tim=2147483647;
+        if (!cstat[i].gonnaLoop) {
+          chan[i].looping=false;
+        }
         return;
         break;
       case mAddBegin:
@@ -359,7 +363,7 @@ void TFMXPlayer::runMacro(int i) {
         } else {
           cstat[i].addBeginDir=false;
         }
-        chan[i].looping=true;
+        cstat[i].gonnaLoop=true;
         //printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
@@ -367,7 +371,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
         cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
         printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
-        chan[i].looping=true;
+        cstat[i].gonnaLoop=true;
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
