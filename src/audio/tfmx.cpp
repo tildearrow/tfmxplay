@@ -121,7 +121,7 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
   cstat[c].vol=vol;
   cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
-  cstat[c].waitingDMA=false;
+  cstat[c].waitingDMA=0;
   cstat[c].waitingKeyUp=false;
   cstat[c].keyon=true;
 }
@@ -248,12 +248,14 @@ void TFMXPlayer::reset(int i) {
   cstat[i].vibTimeC=0;
   cstat[i].vibDir=false;
   cstat[i].envActive=false;
+  cstat[i].postDMAPos=-1;
+  cstat[i].postDMALen=-1;
 }
 
 void TFMXPlayer::runMacro(int i) {
   TFMXMacroData m;
   cstat[i].tim=0;
-  cstat[i].waitingDMA=false;
+  cstat[i].waitingDMA=0;
   cstat[i].waitingKeyUp=false;
   if (cstat[i].offReset) {
     reset(i);
@@ -353,18 +355,17 @@ void TFMXPlayer::runMacro(int i) {
         } else {
           cstat[i].addBeginDir=false;
         }
-        printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
+        //printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
-        if (cstat[i].addBeginC<=0) {
-          cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
-          cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
-          printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
-        }
+        cstat[i].addBeginC=0;
+        cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
+        cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
+        printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
-        cstat[i].waitingDMA=true;
+        cstat[i].waitingDMA=(m.data[1]<<8)|(m.data[2]);
         return;
         break;
       default:
@@ -419,6 +420,7 @@ void TFMXPlayer::nextTick() {
           }
         }
       }
+      if (cstat[i].waitingDMA) continue;
       if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
       if (--cstat[i].tim>=0) continue;
       runMacro(i);
@@ -454,9 +456,12 @@ void TFMXPlayer::handleLoop(int c) {
     chan[c].len=cstat[c].postDMALen;
     cstat[c].postDMALen=-1;
   }
-  if (cstat[c].waitingDMA) {
+  if (cstat[c].waitingDMA>0) {
+    cstat[c].waitingDMA--;
     printf("%d: DMA reach\n",c);
-    runMacro(c);
+    if (cstat[c].waitingDMA==0) {
+      runMacro(c);
+    }
   }
 }
 
@@ -503,9 +508,9 @@ void TFMXPlayer::nextSample(short* l, short* r) {
       }
     }
     if (i==0 || i==3) {
-      la+=smpl[chan[i].pos+chan[i].apos]*chan[i].vol<<1;
+      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     } else {
-      ra+=smpl[chan[i].pos+chan[i].apos]*chan[i].vol<<1;
+      ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     }
   }
   *l=la;

@@ -42,8 +42,8 @@ static void process(void* userdata, Uint8* stream, int len) {
     buf[0][i*ar.channels]=temp[0]+(temp[1]>>2);
     buf[1][i*ar.channels]=temp[1]+(temp[0]>>2);
 #else
-    blip_add_delta(bb[0],i,(short)(temp[0]-prevSample[0]));
-    blip_add_delta(bb[1],i,(short)(temp[1]-prevSample[1]));
+    blip_add_delta(bb[0],i,(temp[0]-prevSample[0])<<1);
+    blip_add_delta(bb[1],i,(temp[1]-prevSample[1])<<1);
     prevSample[0]=temp[0];
     prevSample[1]=temp[1];
 #endif
@@ -57,8 +57,8 @@ static void process(void* userdata, Uint8* stream, int len) {
   blip_read_samples(bb[1],bbOut[1],nframes,0);
 
   for (size_t i=0; i<nframes; i++) {
-    buf[0][i*ar.channels]=bbOut[0][i]+(bbOut[1][i]>>2);
-    buf[1][i*ar.channels]=bbOut[1][i]+(bbOut[0][i]>>2);
+    buf[0][i*ar.channels]=bbOut[0][i];
+    buf[1][i*ar.channels]=bbOut[1][i];
   }
 #endif
 }
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
   
   while (!quit) {
     getchar();
-    p.playMacro(rand()%48,20,15,2,0);
+    p.playMacro(0,40,15,2,0);
   }
 
   SDL_CloseAudioDevice(ai);
