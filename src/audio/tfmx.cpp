@@ -224,10 +224,14 @@ bool TFMXPlayer::updateTrack(int tr) {
         case pNOP:
           break;
         default:
-          if (item.note&0x80) {
+          if ((item.note&0xc0)==0x80) {
             playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans);
             tstat[tr].tim=item.detune;
             getMeOut=true;
+          } else if ((item.note&0xc0)==0xc0) {
+            printf("PORTA\n");
+          } else {
+            playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans);
           }
           break;
       }
@@ -243,6 +247,7 @@ void TFMXPlayer::reset(int i) {
   chan[i].pos=0;
   chan[i].apos=0;
   chan[i].on=false;
+  chan[i].looping=false;
   cstat[i].addBeginC=0;
   cstat[i].addBeginDir=false;
   cstat[i].vibTimeC=0;
@@ -345,7 +350,6 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mAddBegin:
-        // TODO: corruption bug!
         cstat[i].addBegin=m.data[0];
         cstat[i].addBeginC=m.data[0];
         cstat[i].addBeginAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
@@ -355,6 +359,7 @@ void TFMXPlayer::runMacro(int i) {
         } else {
           cstat[i].addBeginDir=false;
         }
+        chan[i].looping=true;
         //printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
@@ -362,6 +367,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
         cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
         printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
+        chan[i].looping=true;
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
@@ -448,19 +454,28 @@ void TFMXPlayer::nextTick() {
 }
 
 void TFMXPlayer::handleLoop(int c) {
+  bool shouldDisable=true;
   if (cstat[c].postDMAPos!=-1) {
     chan[c].pos=cstat[c].postDMAPos;
     cstat[c].postDMAPos=-1;
+    shouldDisable=false;
   }
   if (cstat[c].postDMALen!=-1) {
     chan[c].len=cstat[c].postDMALen;
     cstat[c].postDMALen=-1;
+    shouldDisable=false;
   }
   if (cstat[c].waitingDMA>0) {
     cstat[c].waitingDMA--;
     printf("%d: DMA reach\n",c);
+    shouldDisable=false;
     if (cstat[c].waitingDMA==0) {
       runMacro(c);
+    }
+  }
+  if (shouldDisable) {
+    if (!chan[c].looping) {
+      chan[c].on=false;
     }
   }
 }
@@ -520,4 +535,3 @@ void TFMXPlayer::nextSample(short* l, short* r) {
 void TFMXPlayer::setCIAVal(int val) {
   ciaVal=val;
 }
-

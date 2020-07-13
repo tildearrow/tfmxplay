@@ -42,10 +42,10 @@ static void process(void* userdata, Uint8* stream, int len) {
     buf[0][i*ar.channels]=temp[0]+(temp[1]>>2);
     buf[1][i*ar.channels]=temp[1]+(temp[0]>>2);
 #else
-    blip_add_delta(bb[0],i,(temp[0]-prevSample[0])<<1);
-    blip_add_delta(bb[1],i,(temp[1]-prevSample[1])<<1);
-    prevSample[0]=temp[0];
-    prevSample[1]=temp[1];
+    blip_add_delta(bb[0],i,(temp[0]+(temp[1]>>2)-prevSample[0])<<1);
+    blip_add_delta(bb[1],i,(temp[1]+(temp[0]>>2)-prevSample[1])<<1);
+    prevSample[0]=temp[0]+(temp[1]>>2);
+    prevSample[1]=temp[1]+(temp[0]>>2);
 #endif
   }
 
@@ -78,7 +78,6 @@ int main(int argc, char** argv) {
     printf("could not open song...\n");
     return 1;
   }
-  p.play(songid);
   printf("opening audio\n");
   
   SDL_Init(SDL_INIT_AUDIO);
@@ -107,6 +106,7 @@ int main(int argc, char** argv) {
   p.hleRate=float((double)targetSR/(double)sr);
 
   printf("running.\n");
+  p.play(songid);
   SDL_PauseAudioDevice(ai,0);
   
   while (!quit) {

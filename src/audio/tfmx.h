@@ -3,7 +3,7 @@
 #include <math.h>
 #include <arpa/inet.h>
 
-//#define HLE
+#define HLE
 
 struct TFMXHeader {
   char ident[10];
@@ -103,7 +103,8 @@ class TFMXPlayer {
     unsigned short freq;
     signed char vol;
     bool on;
-    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), on(false) {}
+    bool looping;
+    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), on(false), looping(false) {}
   } chan[8]; 
   signed char* smpl;
   size_t smplLen;
@@ -142,6 +143,8 @@ class TFMXPlayer {
     int envTime;
     int envTimeC;
     bool envActive;
+    
+    int portaTarget;
     
     int postDMAPos;
     int postDMALen;
