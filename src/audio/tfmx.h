@@ -146,6 +146,10 @@ class TFMXPlayer {
     bool envActive;
     
     int portaTarget;
+    int portaTime;
+    int portaTimeC;
+    int portaAmt;
+    bool portaActive;
     
     int postDMAPos;
     int postDMALen;
@@ -161,7 +165,8 @@ class TFMXPlayer {
     int tim;
     int trans;
 
-    TFMXTStat(): index(255), pos(0), tim(0), trans(0) {}
+    int loopCount;
+    TFMXTStat(): index(255), pos(0), tim(0), trans(0), loopCount(0) {}
   } tstat[8];
   int curSong, curRow, curTick, speed;
 

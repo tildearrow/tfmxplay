@@ -39,8 +39,8 @@ static void process(void* userdata, Uint8* stream, int len) {
     p.nextSample(&temp[0],&temp[1]);
 
 #ifdef HLE
-    buf[0][i*ar.channels]=temp[0]+(temp[1]>>2);
-    buf[1][i*ar.channels]=temp[1]+(temp[0]>>2);
+    buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
+    buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
 #else
     blip_add_delta(bb[0],i,(temp[0]+(temp[1]>>2)-prevSample[0])<<1);
     blip_add_delta(bb[1],i,(temp[1]+(temp[0]>>2)-prevSample[1])<<1);

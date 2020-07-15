@@ -156,6 +156,7 @@ void TFMXPlayer::updateRow(int row) {
     tstat[i].pos=-1;
     tstat[i].index=track[curRow][i].pat;
     tstat[i].trans=track[curRow][i].trans;
+    tstat[i].loopCount=0;
 
     if (tstat[i].index==0xfe) chan[tstat[i].trans].on=false;
   }
@@ -178,9 +179,19 @@ bool TFMXPlayer::updateTrack(int tr) {
           return true;
           break;
         case pLoop:
-          tstat[tr].pos=-1;;
+          if (item.ins==0) {
+            tstat[tr].pos=((item.vol<<12)|(item.chan<<8)|item.detune)-1;
+          } else {
+            if (tstat[tr].loopCount==0) {
+              tstat[tr].loopCount=item.ins+1;
+            }
+            if (--tstat[tr].loopCount!=0) {
+              tstat[tr].pos=((item.vol<<12)|(item.chan<<8)|item.detune)-1;
+            }
+          }
           break;
         case pJump:
+          printf("unhandled jump\n");
           break;
         case pWait:
           tstat[tr].tim=item.ins;
@@ -209,18 +220,27 @@ bool TFMXPlayer::updateTrack(int tr) {
           cstat[item.chan].envTarget=item.detune;
           break;
         case pGsPt:
+          printf("unhandled gosub\n");
           break;
         case pRoPt:
+          printf("unhandled return\n");
           break;
         case pFade:
+          printf("unhandled fade\n");
           break;
         case pPPat:
+          printf("unhandled playpat\n");
           break;
         case pPort:
+          printf("unhandled porta\n");
           break;
         case pLock:
+          printf("unhandled lock\n");
           break;
         case pStCu:
+          printf("custom stop\n");
+          tstat[tr].tim=0x7fffffff;
+          getMeOut=true;
           break;
         case pNOP:
           break;
@@ -231,6 +251,15 @@ bool TFMXPlayer::updateTrack(int tr) {
             getMeOut=true;
           } else if ((item.note&0xc0)==0xc0) {
             printf("PORTA\n");
+            cstat[item.chan].portaActive=true;
+            cstat[item.chan].portaTimeC=item.ins;
+            cstat[item.chan].portaTime=0;
+            cstat[item.chan].portaTarget=(item.note&63)+3+tstat[tr].trans;
+            if (getPeriod(cstat[item.chan].portaTarget)<cstat[item.chan].freq) {
+              cstat[item.chan].portaAmt=-item.detune;
+            } else {
+              cstat[item.chan].portaAmt=item.detune;
+            }
           } else {
             playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans);
           }
@@ -255,6 +284,7 @@ void TFMXPlayer::reset(int i) {
   cstat[i].vibTimeC=0;
   cstat[i].vibDir=false;
   cstat[i].envActive=false;
+  cstat[i].portaActive=false;
   cstat[i].postDMAPos=-1;
   cstat[i].postDMALen=-1;
 }
@@ -430,6 +460,28 @@ void TFMXPlayer::nextTick() {
           }
         }
       }
+      if (cstat[i].portaActive) {
+        if (--cstat[i].portaTime<=0) {
+          cstat[i].portaTime=cstat[i].portaTimeC;
+          if (cstat[i].portaTimeC==0) cstat[i].portaActive=false;
+          cstat[i].freq=(cstat[i].freq*(256+cstat[i].portaAmt))>>8;
+          if (cstat[i].portaTarget!=-1) {
+            if (cstat[i].portaAmt>0) {
+              if (cstat[i].freq>getPeriod(cstat[i].portaTarget)) {
+                cstat[i].freq=getPeriod(cstat[i].portaTarget);
+                cstat[i].note=cstat[i].portaTarget;
+                cstat[i].portaActive=false;
+              }
+            } else {
+              if (cstat[i].freq<getPeriod(cstat[i].portaTarget)) {
+                cstat[i].freq=getPeriod(cstat[i].portaTarget);
+                cstat[i].note=cstat[i].portaTarget;
+                cstat[i].portaActive=false;
+              }
+            }
+          }
+        }
+      }
       if (cstat[i].waitingDMA) continue;
       if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
       if (--cstat[i].tim>=0) continue;
@@ -514,7 +566,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
 #endif
       if (chan[i].seek<0) {
 #ifdef HLE
-        chan[i].seek+=chan[i].freq;
+        chan[i].seek+=chan[i].freq+1;
 #else
         chan[i].seek=chan[i].freq;
 #endif
