@@ -72,7 +72,14 @@ int main(int argc, char** argv) {
   }
   songid=0;
   if (argc>3) {
-    songid=atoi(argv[3]);
+    if (strcmp(argv[3],"n")==0) {
+      ntsc=true;
+      if (argc>4) {
+        songid=atoi(argv[4]);
+      }
+    } else {
+      songid=atoi(argv[3]);
+    }
   }
   if (!p.load(argv[1],argv[2])) {
     printf("could not open song...\n");
