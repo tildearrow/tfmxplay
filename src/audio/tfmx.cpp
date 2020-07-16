@@ -287,6 +287,7 @@ void TFMXPlayer::reset(int i) {
   cstat[i].portaActive=false;
   cstat[i].postDMAPos=-1;
   cstat[i].postDMALen=-1;
+  cstat[i].postDMAAdd=0;
 }
 
 void TFMXPlayer::runMacro(int i) {
@@ -422,9 +423,9 @@ void TFMXPlayer::nextTick() {
     if (cstat[i].index!=-1) {
       if (cstat[i].addBeginC>0) {
         if (cstat[i].addBeginDir) {
-          chan[i].pos-=cstat[i].addBeginAmt;
+          cstat[i].postDMAAdd-=cstat[i].addBeginAmt;
         } else {
-          chan[i].pos+=cstat[i].addBeginAmt;
+          cstat[i].postDMAAdd+=cstat[i].addBeginAmt;
         }
         if (--cstat[i].addBegin<0) {
           cstat[i].addBegin=cstat[i].addBeginC;
@@ -520,6 +521,10 @@ void TFMXPlayer::handleLoop(int c) {
     chan[c].len=cstat[c].postDMALen;
     cstat[c].postDMALen=-1;
     shouldDisable=false;
+  }
+  if (cstat[c].postDMAAdd!=0) {
+    chan[c].pos+=cstat[c].postDMAAdd;
+    cstat[c].postDMAAdd=0;
   }
   if (cstat[c].waitingDMA>0) {
     cstat[c].waitingDMA--;

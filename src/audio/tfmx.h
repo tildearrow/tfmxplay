@@ -3,7 +3,7 @@
 #include <math.h>
 #include <arpa/inet.h>
 
-#define HLE
+//#define HLE
 
 struct TFMXHeader {
   char ident[10];
@@ -153,6 +153,7 @@ class TFMXPlayer {
     
     int postDMAPos;
     int postDMALen;
+    int postDMAAdd;
 
     short freq, detune;
     

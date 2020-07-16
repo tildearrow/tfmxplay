@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
   
   while (!quit) {
     getchar();
-    p.playMacro(0,40,15,2,0);
+    p.playMacro(0,40,15,3,0);
   }
 
   SDL_CloseAudioDevice(ai);
