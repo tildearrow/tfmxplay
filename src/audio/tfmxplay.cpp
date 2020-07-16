@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <signal.h>
 #include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 #include <SDL2/SDL.h>
 
 #include "blip_buf.h"
@@ -19,6 +22,21 @@ int sr;
 double targetSR;
 
 TFMXPlayer p;
+
+struct sigaction intsa;
+struct termios termprop;
+struct termios termpropold;
+
+void finish() {
+  if (tcsetattr(0,TCSAFLUSH,&termpropold)!=0) {
+    printf("WARNING: FAILURE TO SET FLAGS TO QUIT!\n");
+    return;
+  }
+}
+
+static void handleTerm(int data) {
+  quit=true;
+}
 
 static void process(void* userdata, Uint8* stream, int len) {
   short* buf[2];
@@ -116,11 +134,50 @@ int main(int argc, char** argv) {
   p.play(songid);
   SDL_PauseAudioDevice(ai,0);
   
+  sigemptyset(&intsa.sa_mask);
+  intsa.sa_flags=0;
+  intsa.sa_handler=handleTerm;
+  sigaction(SIGINT,&intsa,NULL);
+  
+  setvbuf(stdin,NULL,_IONBF,1);
+  if (tcgetattr(0,&termprop)!=0) {
+    return 1;
+  }
+  memcpy(&termpropold,&termprop,sizeof(struct termios));
+  termprop.c_lflag&=~ECHO;
+  termprop.c_lflag&=~ICANON;
+  if (tcsetattr(0,TCSAFLUSH,&termprop)!=0) {
+    return 1;
+  }
+  
   while (!quit) {
-    getchar();
-    p.playMacro(0,40,15,3,0);
+    int c;
+    c=getchar();
+    if (c==EOF) break;
+    if (c>='A') {
+      p.lock(3,32);
+      p.playMacro(c-'A',20,15,3,0);
+    } else {
+      switch (c) {
+        case '1':
+          p.lock(0,32);
+          break;
+        case '2':
+          p.lock(1,32);
+          break;
+        case '3':
+          p.lock(2,32);
+          break;
+        case '4':
+          p.lock(3,32);
+          break;
+      }
+    }
   }
 
   SDL_CloseAudioDevice(ai);
+  
+  printf("quit!\n");
+  finish();
   return 0;
 }
