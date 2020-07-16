@@ -36,6 +36,9 @@ void finish() {
 
 static void handleTerm(int data) {
   quit=true;
+  printf("quit!\n");
+  finish();
+  exit(0);
 }
 
 static void process(void* userdata, Uint8* stream, int len) {
@@ -152,7 +155,7 @@ int main(int argc, char** argv) {
   
   while (!quit) {
     int c;
-    c=getchar();
+    c=fgetc(stdin);
     if (c==EOF) break;
     if (c>='A') {
       p.lock(3,32);
