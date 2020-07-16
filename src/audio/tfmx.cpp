@@ -70,6 +70,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
       fread(&pat[i][s],sizeof(TFMXPatData),1,f);
       if (pat[i][s].note==0xf0) break;
       s++;
+      if (s>255) break;
     }
     printf("pat %d len %d\n",i,s);
   }
@@ -82,6 +83,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
       fread(&macro[i][s],sizeof(TFMXMacroData),1,f);
       if (macro[i][s].op==7) break;
       s++;
+      if (s>255) break;
     }
     printf("macro %d len %d\n",i,s);
   }
