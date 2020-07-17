@@ -162,8 +162,6 @@ void TFMXPlayer::updateRow(int row) {
 
     if (tstat[i].index==0xfe) chan[tstat[i].trans].on=false;
   }
-  curTick=0;
-  nextTick();
 }
 
 bool TFMXPlayer::updateTrack(int tr) {
@@ -308,16 +306,14 @@ void TFMXPlayer::runMacro(int i) {
   cstat[i].tim=0;
   cstat[i].waitingDMA=0;
   cstat[i].waitingKeyUp=false;
-  if (cstat[i].offReset) {
-    reset(i);
-  }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
-        if (m.data[2]) {
+        if (m.data[0]|m.data[1]|m.data[2]) {
           reset(i);
+          printf("\x1b[1;31m%d: immediate!\x1b[m\n",i);
         } else {
           cstat[i].offReset=true;
           return;
@@ -360,11 +356,11 @@ void TFMXPlayer::runMacro(int i) {
       case mSetNote:
         // TODO detune
         cstat[i].freq=getPeriod(m.data[0]+3);
-        return;
+        if (chan[i].on) return;
         break;
       case mAddNote:
         cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
-        return;
+        if (chan[i].on) return;
         break;
       case mSetPeriod:
         cstat[i].freq=(m.data[1]<<8)|(m.data[2]);
@@ -385,6 +381,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].detune=0;
         break;
       case mPorta:
+        printf("MPORTA\n");
         cstat[i].portaActive=true;
         cstat[i].portaTime=0;
         cstat[i].portaTimeC=m.data[0];
@@ -448,6 +445,20 @@ void TFMXPlayer::runMacro(int i) {
 }
 
 void TFMXPlayer::nextTick() {
+  if (--curTick<0) {
+    curTick=speed;
+    for (int i=0; i<8; i++) {
+      if (tstat[i].index<0x80) if (updateTrack(i)) {
+        if (curRow>=head.songEnd[curSong]) {
+          printf("end of song reached!\n");
+          updateRow(head.songStart[curSong]);
+        } else {
+          updateRow(curRow+1);
+        }
+        i=-1;
+      }
+    }
+  }
   // update macros
   for (int i=0; i<4; i++) {
     if (cstat[i].index!=-1) {
@@ -517,6 +528,9 @@ void TFMXPlayer::nextTick() {
       if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
       if (--cstat[i].tim>=0) continue;
       runMacro(i);
+      if (cstat[i].offReset) {
+        reset(i);
+      }
     }
   }
   // update freqs
@@ -527,20 +541,6 @@ void TFMXPlayer::nextTick() {
     if (cstat[i].locked) {
       if (--cstat[i].lockTime<=0) {
         cstat[i].locked=false;
-      }
-    }
-  }
-  if (--curTick<0) {
-    curTick=speed;
-    for (int i=0; i<8; i++) {
-      if (tstat[i].index<0x80) if (updateTrack(i)) {
-        if (curRow>=head.songEnd[curSong]) {
-          printf("end of song reached!\n");
-          updateRow(head.songStart[curSong]);
-        } else {
-          updateRow(curRow+1);
-        }
-        break;
       }
     }
   }
@@ -593,7 +593,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
   
   for (int i=0; i<4; i++) {
     if (!chan[i].on) continue;
-    if (chan[i].freq) {
+    if (chan[i].freq>=124) {
 #ifdef HLE
       chan[i].seek-=intAccum;
 #else
@@ -601,6 +601,19 @@ void TFMXPlayer::nextSample(short* l, short* r) {
 #endif
       if (chan[i].seek<0) {
 #ifdef HLE
+        if ((chan[i].apos+1)>=(chan[i].len*2)) {
+          if (i==0 || i==3) {
+            la-=(((smpl[chan[i].pos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
+          } else {
+            ra-=(((smpl[chan[i].pos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
+          }
+        } else {
+          if (i==0 || i==3) {
+            la-=(((smpl[chan[i].pos+chan[i].apos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
+          } else {
+            ra-=(((smpl[chan[i].pos+chan[i].apos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
+          }
+        }
         chan[i].seek+=chan[i].freq+1;
 #else
         chan[i].seek=chan[i].freq;
