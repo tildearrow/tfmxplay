@@ -153,6 +153,10 @@ int main(int argc, char** argv) {
     return 1;
   }
   
+  //p.lock(0,2000000);
+  //p.lock(1,2000000);
+  //p.lock(3,2000000);
+  
   while (!quit) {
     int c;
     c=fgetc(stdin);

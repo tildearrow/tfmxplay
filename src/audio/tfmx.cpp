@@ -123,16 +123,15 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
   cstat[c].vol=vol;
   cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
-  cstat[c].waitingDMA=0;
-  cstat[c].waitingKeyUp=false;
   cstat[c].keyon=true;
 }
 
 void TFMXPlayer::updateRow(int row) {
+  short newTempo;
   curRow=row;
   printf("Next Row!\n");
   if (track[curRow][0].pat==0xef && track[curRow][0].trans==0xfe) {
-    printf("EFFE!!!\n");
+    printf("EFFE!!! (%d)\n",track[curRow][1].trans);
     switch (track[curRow][1].trans) {
       case 0: // stop
         stop();
@@ -143,6 +142,11 @@ void TFMXPlayer::updateRow(int row) {
         return;
         break;
       case 2: // tempo
+        printf("tempo\n");
+        newTempo=(track[curRow][3].pat<<8)+(track[curRow][3].trans);
+        if (newTempo>0) {
+          ciaVal=8948863.63/newTempo;
+        }
         break;
       case 3: // volslide
         break;
@@ -299,6 +303,8 @@ void TFMXPlayer::reset(int i) {
   cstat[i].postDMAPos=-1;
   cstat[i].postDMALen=-1;
   cstat[i].postDMAAdd=0;
+  cstat[i].waitingDMA=0;
+  cstat[i].waitingKeyUp=false;
 }
 
 void TFMXPlayer::runMacro(int i) {
@@ -306,14 +312,19 @@ void TFMXPlayer::runMacro(int i) {
   cstat[i].tim=0;
   cstat[i].waitingDMA=0;
   cstat[i].waitingKeyUp=false;
+  if (cstat[i].imm) {
+    cstat[i].imm=false;
+    reset(i);
+  }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
         if (m.data[0]|m.data[1]|m.data[2]) {
-          reset(i);
           printf("\x1b[1;31m%d: immediate!\x1b[m\n",i);
+          cstat[i].imm=true;
+          return;
         } else {
           cstat[i].offReset=true;
           return;
@@ -593,7 +604,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
   
   for (int i=0; i<4; i++) {
     if (!chan[i].on) continue;
-    if (chan[i].freq>=124) {
+    if (chan[i].freq>=100) {
 #ifdef HLE
       chan[i].seek-=intAccum;
 #else
@@ -601,19 +612,6 @@ void TFMXPlayer::nextSample(short* l, short* r) {
 #endif
       if (chan[i].seek<0) {
 #ifdef HLE
-        if ((chan[i].apos+1)>=(chan[i].len*2)) {
-          if (i==0 || i==3) {
-            la-=(((smpl[chan[i].pos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
-          } else {
-            ra-=(((smpl[chan[i].pos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
-          }
-        } else {
-          if (i==0 || i==3) {
-            la-=(((smpl[chan[i].pos+chan[i].apos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
-          } else {
-            ra-=(((smpl[chan[i].pos+chan[i].apos+1]-smpl[chan[i].pos+chan[i].apos])*chan[i].vol)*(chan[i].freq+chan[i].seek))/chan[i].freq;
-          }
-        }
         chan[i].seek+=chan[i].freq+1;
 #else
         chan[i].seek=chan[i].freq;
