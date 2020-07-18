@@ -1,5 +1,42 @@
 #include "tfmx.h"
 
+const char* macroName[]={
+  "OffReset",
+  "On",
+  "SetBegin",
+  "SetLen",
+  "Wait",
+  "Loop",
+  "Cont",
+  "Stop",
+  "AddNote",
+  "SetNote",
+  "Reset",
+  "Porta",
+  "Vibrato",
+  "AddVol",
+  "SetVol",
+  "Env",
+  "LoopUp",
+  "AddBegin",
+  "AddLen",
+  "Off",
+  "WaitUp",
+  "GoSub",
+  "Ret",
+  "SetPeriod",
+  "SetLoop",
+  "OneShot",
+  "WaitDMA",
+  "Rand",
+  "SplitKey",
+  "SplitVol",
+  "AddVolNote",
+  "SetPrevNote",
+  "Signal",
+  "PlayMacro"
+};
+
 bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   FILE* f;
   // smpl
@@ -320,6 +357,7 @@ void TFMXPlayer::runMacro(int i) {
   }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
+    printf("%d: %.2x: %s %.2x%.2x%.2x\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
@@ -361,10 +399,12 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mAddVol:
-        chan[i].vol=m.data[2]+cstat[i].vol*3;
+        chan[i].nextvol=m.data[2]+cstat[i].vol*3;
+        cstat[i].changeVol=true;
         break;
       case mSetVol:
-        chan[i].vol=m.data[2];
+        chan[i].nextvol=m.data[2];
+        cstat[i].changeVol=true;
         break;
       case mSetNote:
         // TODO detune
@@ -536,6 +576,10 @@ void TFMXPlayer::nextTick() {
             }
           }
         }
+      }
+      if (cstat[i].changeVol) {
+        cstat[i].changeVol=false;
+        chan[i].vol=chan[i].nextvol;
       }
       if (cstat[i].waitingDMA) continue;
       if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
