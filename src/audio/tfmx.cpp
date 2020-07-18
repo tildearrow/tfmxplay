@@ -399,12 +399,20 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mAddVol:
-        chan[i].nextvol=m.data[2]+cstat[i].vol*3;
-        cstat[i].changeVol=true;
+        if (chan[i].on) {
+          chan[i].nextvol=m.data[2]+cstat[i].vol*3;
+          cstat[i].changeVol=true;
+        } else {
+          chan[i].vol=m.data[2];
+        }
         break;
       case mSetVol:
-        chan[i].nextvol=m.data[2];
-        cstat[i].changeVol=true;
+        if (chan[i].on) {
+          chan[i].nextvol=m.data[2];
+          cstat[i].changeVol=true;
+        } else {
+          chan[i].vol=m.data[2];
+        }
         break;
       case mSetNote:
         // TODO detune
