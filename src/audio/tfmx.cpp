@@ -124,6 +124,8 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
   cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
   cstat[c].keyon=true;
+  cstat[c].waitingDMA=0;
+  cstat[c].waitingKeyUp=false;
 }
 
 void TFMXPlayer::updateRow(int row) {
