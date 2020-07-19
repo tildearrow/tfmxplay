@@ -168,9 +168,13 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
 void TFMXPlayer::updateRow(int row) {
   short newTempo;
   curRow=row;
-  printf("Next Row!\n");
+  printf("\x1b[1;34m-----[ Next Row! ]-----\x1b[m\n");
+  printf("\x1b[36m%d:",curRow);
+  for (int i=0; i<8; i++) {
+    printf(" %.2x%.2x",track[curRow][i].pat,track[curRow][i].trans);
+  }
+  printf("\x1b[m\n");
   if (track[curRow][0].pat==0xef && track[curRow][0].trans==0xfe) {
-    printf("EFFE!!! (%d)\n",track[curRow][1].trans);
     switch (track[curRow][1].trans) {
       case 0: // stop
         stop();
@@ -215,10 +219,9 @@ bool TFMXPlayer::updateTrack(int tr) {
     while (!getMeOut) {
       tstat[tr].pos++;
       item=pat[tstat[tr].index][tstat[tr].pos];
-      printf("%d: chan %d note %.2x\n",tr,item.chan,item.note);
+      printf("\x1b[1;30m%d: %.2x:%.2x %.1x @ %.1x ... %.2x\x1b[m\n",tr,item.note,item.vol,item.vol,item.chan,item.detune);
       switch (item.note) {
         case pEnd:
-          printf("returning end\n");
           return true;
           break;
         case pLoop:
@@ -234,7 +237,8 @@ bool TFMXPlayer::updateTrack(int tr) {
           }
           break;
         case pJump:
-          printf("unhandled jump\n");
+          tstat[tr].index=item.ins;
+          tstat[tr].pos=((item.vol<<12)|(item.chan<<8)|item.detune)-1;
           break;
         case pWait:
           tstat[tr].tim=item.ins;
@@ -257,7 +261,6 @@ bool TFMXPlayer::updateTrack(int tr) {
             cstat[item.chan].vibDir=false;
             cstat[item.chan].detune=0;
           }
-          printf("vibrato!\n");
           break;
         case pEnve:
           if (!cstat[item.chan].locked) {
@@ -301,7 +304,6 @@ bool TFMXPlayer::updateTrack(int tr) {
             tstat[tr].tim=item.detune;
             getMeOut=true;
           } else if ((item.note&0xc0)==0xc0) {
-            printf("PORTA\n");
             if (!cstat[item.chan].locked) {
               cstat[item.chan].portaActive=true;
               cstat[item.chan].portaTimeC=item.ins;
@@ -357,12 +359,11 @@ void TFMXPlayer::runMacro(int i) {
   }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
-    printf("\x1b[1;33m%d: %.2x: %s %.2x%.2x%.2x\x1b[m\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
+    if (trace) printf("\x1b[1;33m%d: %.2x: %s %.2x%.2x%.2x\x1b[m\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
         if (m.data[0]|m.data[1]|m.data[2]) {
-          printf("\x1b[1;31m%d: immediate!\x1b[m\n",i);
           cstat[i].imm=true;
           return;
         } else {
@@ -373,11 +374,9 @@ void TFMXPlayer::runMacro(int i) {
       case mSetBegin:
         if (chan[i].on) {
           cstat[i].postDMAPos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
-          printf("%d: call to delayed pos (%d)\n",i,cstat[i].postDMAPos);
         } else {
           chan[i].pos=(m.data[0]<<16)|(m.data[1]<<8)|(m.data[2]);
           chan[i].apos=0;
-          printf("%d: call to pos (%d)\n",i,chan[i].pos);
         }
         break;
       case mSetLen:
@@ -402,9 +401,8 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) {
           chan[i].nextvol=m.data[2]+cstat[i].vol*3;
           cstat[i].changeVol=true;
-          printf("\x1b[1;32mPOST.\x1b[m\n");
+          if (trace) printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
-          printf("no post.\n");
           chan[i].vol=m.data[2]+cstat[i].vol*3;
         }
         break;
@@ -412,9 +410,8 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) {
           chan[i].nextvol=m.data[2];
           cstat[i].changeVol=true;
-          printf("\x1b[1;32mPOST.\x1b[m\n");
+          if (trace) printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
-          printf("no post.\n");
           chan[i].vol=m.data[2];
         }
         break;
@@ -465,7 +462,6 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mWaitUp:
-        printf("%d: waiting on key up.\n",i);
         if (cstat[i].keyon) {
           cstat[i].waitingKeyUp=true;
         }
@@ -485,13 +481,11 @@ void TFMXPlayer::runMacro(int i) {
         } else {
           cstat[i].addBeginDir=false;
         }
-        //printf("%d: %.2x %.2x %.2x %.2x... %d AT THE BEGINNING: %d\n",i,m.op,m.data[0],m.data[1],m.data[2],cstat[i].addBeginAmt,chan[i].pos);
         break;
       case mSetLoop:
         cstat[i].addBeginC=0;
         cstat[i].postDMAPos=chan[i].pos+((m.data[1]<<8)|(m.data[2]));
         cstat[i].postDMALen=chan[i].len-(((m.data[1]<<8)|(m.data[2]))>>1);
-        printf("%d: call to set loop (%d)\n",i,cstat[i].postDMAPos);
         break;
       case mWaitSample:
         cstat[i].tim=2147483647;
@@ -510,7 +504,7 @@ void TFMXPlayer::runMacro(int i) {
 }
 
 void TFMXPlayer::nextTick() {
-  printf("\x1b[1;36m--- FRAME %d ---\x1b[m\n",frame++);
+  if (trace) printf("\x1b[1;36m--- FRAME %d ---\x1b[m\n",frame++);
   if (--curTick<0) {
     curTick=speed;
     for (int i=0; i<8; i++) {
@@ -606,7 +600,7 @@ void TFMXPlayer::nextTick() {
   // update freqs
   for (int i=0; i<4; i++) {
     chan[i].freq=(float)cstat[i].freq*pow(2,(float)cstat[i].detune/(6*256.0f));
-    if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
+    //if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
     
     if (cstat[i].locked) {
       if (--cstat[i].lockTime<=0) {
@@ -630,6 +624,7 @@ void TFMXPlayer::handleLoop(int c) {
     cstat[c].postDMAAdd=0;
   }
   if (cstat[c].waitingDMA>0) {
+    if (trace) printf("\x1b[36m- subtick %d/%d\x1b[m\n",ciaVal-ciaCount,ciaVal);
     cstat[c].waitingDMA--;
     printf("%d: DMA reach\n",c);
     if (cstat[c].waitingDMA==0) {

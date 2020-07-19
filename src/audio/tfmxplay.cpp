@@ -166,6 +166,12 @@ int main(int argc, char** argv) {
       p.playMacro(c-'A',20,15,3,0);
     } else {
       switch (c) {
+        case '\n':
+          p.trace=!p.trace;
+          break;
+        case '\\':
+          p.setCIAVal(70937*6);
+          break;
         case '1':
           p.lock(0,32);
           break;

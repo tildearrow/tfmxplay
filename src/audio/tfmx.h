@@ -189,6 +189,7 @@ class TFMXPlayer {
   void handleLoop(int c);
   public:
     float hleRate;
+    bool trace;
     void nextSample(short* l, short* r);
     void setCIAVal(int val);
     int play(int song);
@@ -196,5 +197,5 @@ class TFMXPlayer {
     void lock(int chan, int time);
     bool load(const char* mdat, const char* smpl);
     void playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans);
-    TFMXPlayer(): ciaVal(59659), frame(0), fractAccum(0), intAccum(0), hleRate(1) {}
+    TFMXPlayer(): ciaVal(59659), frame(0), fractAccum(0), intAccum(0), hleRate(1), trace(false) {}
 };
