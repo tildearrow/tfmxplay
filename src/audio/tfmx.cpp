@@ -357,7 +357,7 @@ void TFMXPlayer::runMacro(int i) {
   }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
-    printf("%d: %.2x: %s %.2x%.2x%.2x\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
+    printf("\x1b[1;33m%d: %.2x: %s %.2x%.2x%.2x\x1b[m\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
@@ -402,15 +402,19 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) {
           chan[i].nextvol=m.data[2]+cstat[i].vol*3;
           cstat[i].changeVol=true;
+          printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
-          chan[i].vol=m.data[2];
+          printf("no post.\n");
+          chan[i].vol=m.data[2]+cstat[i].vol*3;
         }
         break;
       case mSetVol:
         if (chan[i].on) {
           chan[i].nextvol=m.data[2];
           cstat[i].changeVol=true;
+          printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
+          printf("no post.\n");
           chan[i].vol=m.data[2];
         }
         break;
@@ -506,6 +510,7 @@ void TFMXPlayer::runMacro(int i) {
 }
 
 void TFMXPlayer::nextTick() {
+  printf("\x1b[1;36m--- FRAME %d ---\x1b[m\n",frame++);
   if (--curTick<0) {
     curTick=speed;
     for (int i=0; i<8; i++) {
