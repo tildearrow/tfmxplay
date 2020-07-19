@@ -3,7 +3,7 @@
 #include <math.h>
 #include <arpa/inet.h>
 
-//#define HLE
+#define HLE
 
 struct TFMXHeader {
   char ident[10];
@@ -176,11 +176,16 @@ class TFMXPlayer {
     int loopCount;
     TFMXTStat(): index(255), pos(0), tim(0), trans(0), loopCount(0) {}
   } tstat[8];
-  int curSong, curRow, curTick, speed;
+  int curSong, curRow, curTick, curStep, speed, totTracks;
+  
+  TFMXPatData curPat[8];
+  bool patChanged[8];
 
   float fractAccum;
   int intAccum;
   
+  void printItem(TFMXPatData item);
+  void dumpPat();
   bool updateTrack(int tr);
   void updateRow(int row);
   void nextTick();
@@ -197,5 +202,5 @@ class TFMXPlayer {
     void lock(int chan, int time);
     bool load(const char* mdat, const char* smpl);
     void playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans);
-    TFMXPlayer(): ciaVal(59659), frame(0), fractAccum(0), intAccum(0), hleRate(1), trace(false) {}
+    TFMXPlayer(): ciaVal(59659), frame(0), totTracks(0), fractAccum(0), intAccum(0), hleRate(1), trace(false) {}
 };

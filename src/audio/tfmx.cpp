@@ -37,6 +37,15 @@ const char* macroName[]={
   "PlayMacro"
 };
 
+const char* noteName[]={
+  "F#0", "G-0", "G#0", "A-0", "A#0", "B-0",
+  "C-1", "C#1", "D-1", "D#1", "E-1", "F-1", "F#1", "G-1", "G#1", "A-1", "A#1", "B-1",
+  "C-2", "C#2", "D-2", "D#2", "E-2", "F-2", "F#2", "G-2", "G#2", "A-2", "A#2", "B-2",
+  "C-3", "C#3", "D-3", "D#3", "E-3", "F-3", "F#3", "G-3", "G#3", "A-3", "A#3", "B-3",
+  "C-4", "C#4", "D-4", "D#4", "E-4", "F-4", "F#4", "G-4", "G#4", "A-4", "A#4", "B-4",
+  "C-5", "C#5", "D-5", "D#5", "E-5", "F-5", "F#5", "G-5", "G#5", "A-5", "A#5", "B-5",
+};
+
 bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   FILE* f;
   // smpl
@@ -168,6 +177,7 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
 void TFMXPlayer::updateRow(int row) {
   short newTempo;
   curRow=row;
+  curStep=0;
   printf("\x1b[1;34m-----[ Next Row! ]-----\x1b[m\n");
   printf("\x1b[36m%d:",curRow);
   for (int i=0; i<8; i++) {
@@ -208,7 +218,111 @@ void TFMXPlayer::updateRow(int row) {
     tstat[i].loopCount=0;
 
     if (tstat[i].index==0xfe) chan[tstat[i].trans].on=false;
+
+    if (tstat[i].index<128 && totTracks<(i+1)) totTracks=i+1;
   }
+}
+
+void TFMXPlayer::printItem(TFMXPatData item) {
+  switch (item.note&0xc0) {
+    case 0x00: case 0x40:
+      printf(" %s~%.2x~%.1x%.1x~%.2x",noteName[item.note&0x3f],item.ins,item.vol,item.chan,item.detune);
+      break;
+    case 0x80:
+      printf(" %s %.2x %.1x%.1x %.2x",noteName[item.note&0x3f],item.ins,item.vol,item.chan,item.detune);
+      break;
+    case 0xc0:
+      if (item.note>=0xf0) {
+        switch (item.note) {
+          case pEnd:
+            printf(" ----NEXT----");
+            break;
+          case pLoop:
+            printf(" Loop %.2x:%.1x%.1x%.2x",item.ins,item.vol,item.chan,item.detune);
+            break;
+          case pJump:
+            printf(" Jump %.2x:%.1x%.1x%.2x",item.ins,item.vol,item.chan,item.detune);
+            break;
+          case pWait:
+            printf(" --Wait %.2x'--",item.ins);
+            break;
+          case pStop:
+            printf(" ----STOP----");
+            break;
+          case pKeyUp:
+            printf("   ^^^^^^   %.1x",item.chan);
+            break;
+          case pVibr:
+            printf(" Vibr %.2x:%.2x %.1x",item.ins,item.detune,item.chan);
+            break;
+          case pEnve:
+            printf(" Env %.2x%.2x %.1x %.1x",item.ins,item.detune,item.vol,item.chan);
+            break;
+          case pGsPt:
+            printf(" GsPt %.2x:%.1x%.1x%.2x",item.ins,item.vol,item.chan,item.detune);
+            break;
+          case pRoPt:
+            printf(" ---Return---");
+            break;
+          case pFade:
+            printf(" Fade %.2x : %.2x",item.ins,item.detune);
+            break;
+          case pPPat:
+            printf(" PPat %.2x:%.2x %.1x",item.ins,item.detune,item.chan);
+            break;
+          case pPort:
+            printf(" Port %.2x:%.2x %.1x",item.ins,item.detune,item.chan);
+            break;
+          case pLock:
+            printf(" Lock %.2x:%.1x%.1x%.2x",item.ins,item.vol,item.chan,item.detune);
+            break;
+          case pStCu:
+            printf(" -StopCustom-");
+            break;
+          case pNOP:
+            printf(" ------------");
+            break;
+        }
+      } else {
+        printf(" %s %.2x %.1x%.1x %.2x",noteName[item.note&0x3f],item.ins,item.vol,item.chan,item.detune);
+      }
+      break;
+  }
+}
+
+void TFMXPlayer::dumpPat() {
+  printf("%3d",curStep);
+  printf("\x1b[1m");
+  if (totTracks>5) {
+    for (int i=0; i<totTracks; i++) {
+      if (patChanged[i]) {
+        printf("\x1b[31m");
+        patChanged[i]=false;
+      } else {
+        printf("\x1b[30m");
+      }
+      if (tstat[i].index>=128) {
+        printf(" --------");
+      } else {
+        printf(" %.2x%.2x%.1x%.1x%.2x",curPat[i].note,curPat[i].ins,curPat[i].vol,curPat[i].chan,curPat[i].detune);
+      }
+    }
+  } else {
+    for (int i=0; i<totTracks; i++) {
+      if (patChanged[i]) {
+        printf("\x1b[31m");
+        patChanged[i]=false;
+      } else {
+        printf("\x1b[30m");
+      }
+      if (tstat[i].index>=128) {
+        printf(" ------------");
+      } else {
+        printItem(curPat[i]);
+      }
+    }
+  }
+  printf("\x1b[m\n");
 }
 
 bool TFMXPlayer::updateTrack(int tr) {
@@ -219,7 +333,8 @@ bool TFMXPlayer::updateTrack(int tr) {
     while (!getMeOut) {
       tstat[tr].pos++;
       item=pat[tstat[tr].index][tstat[tr].pos];
-      printf("\x1b[1;30m%d: %.2x:%.2x %.1x @ %.1x ... %.2x\x1b[m\n",tr,item.note,item.vol,item.vol,item.chan,item.detune);
+      curPat[tr]=item;
+      patChanged[tr]=true;
       switch (item.note) {
         case pEnd:
           return true;
@@ -322,6 +437,7 @@ bool TFMXPlayer::updateTrack(int tr) {
           }
           break;
       }
+      if (!getMeOut) dumpPat();
     }
   }
   return false;
@@ -518,6 +634,13 @@ void TFMXPlayer::nextTick() {
         i=-1;
       }
     }
+    for (int i=0; i<8; i++) {
+      if (patChanged[i]) {
+        dumpPat();
+        break;
+      }
+    }
+    curStep++;
   }
   // update macros
   for (int i=0; i<4; i++) {
@@ -626,7 +749,7 @@ void TFMXPlayer::handleLoop(int c) {
   if (cstat[c].waitingDMA>0) {
     if (trace) printf("\x1b[36m- subtick %d/%d\x1b[m\n",ciaVal-ciaCount,ciaVal);
     cstat[c].waitingDMA--;
-    printf("%d: DMA reach\n",c);
+    if (trace) printf("%d: DMA reach\n",c);
     if (cstat[c].waitingDMA==0) {
       runMacro(c);
     }
