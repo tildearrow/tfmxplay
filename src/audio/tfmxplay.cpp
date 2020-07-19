@@ -3,10 +3,35 @@
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <string>
+#include <vector>
 #include <SDL2/SDL.h>
 
 #include "blip_buf.h"
 #include "tfmx.h"
+
+typedef std::string string;
+
+struct Param {
+  string shortName;
+  string name;
+  string valName;
+  string desc;
+  bool value;
+  bool (*func)(string);
+  Param(string sn, string n, bool v, bool (*f)(string), string vn, string d): shortName(sn), name(n), valName(vn), desc(d), value(v), func(f) {}
+};
+
+std::vector<Param> params;
+
+bool needsValue(string param) {
+  for (size_t i=0; i<params.size(); i++) {
+    if (params[i].name==param) {
+      return params[i].value;
+    }
+  }
+  return false;
+}
 
 blip_buffer_t* bb[2];
 int prevSample[2]={0,0};
@@ -84,25 +109,93 @@ static void process(void* userdata, Uint8* stream, int len) {
 #endif
 }
 
-int main(int argc, char** argv) {
-  int songid;
-  ntsc=false;
-  if (argc<3) {
-    printf("usage: %s mdat.file smpl.file [song]\n",argv[0]);
-    return 1;
-  }
-  songid=0;
-  if (argc>3) {
-    if (strcmp(argv[3],"n")==0) {
-      ntsc=true;
-      if (argc>4) {
-        songid=atoi(argv[4]);
-      }
+bool pHelp(string) {
+  printf("usage: tfmxplay [-params] mdat.file [smpl.file]\n");
+  for (auto& i: params) {
+    if (i.value) {
+      printf("  -%s %s: %s\n",i.name.c_str(),i.valName.c_str(),i.desc.c_str());
     } else {
-      songid=atoi(argv[3]);
+      printf("  -%s: %s\n",i.name.c_str(),i.desc.c_str());
     }
   }
-  if (!p.load(argv[1],argv[2])) {
+  return false;
+}
+
+bool pNTSC(string) {
+  ntsc=true;
+  return true;
+}
+
+void initParams() {
+  params.push_back(Param("h","help",false,pHelp,"","display this help"));
+
+  params.push_back(Param("n","ntsc",false,pNTSC,"","use NTSC rate"));
+}
+
+int main(int argc, char** argv) {
+  string mdat, smpl;
+  int songid;
+  ntsc=false;
+
+  initParams();
+
+  // parse arguments
+  string arg, val;
+  size_t eqSplit, argStart;
+  for (int i=1; i<argc; i++) {
+    arg=""; val="";
+    if (argv[i][0]=='-') {
+      if (argv[i][1]=='-') {
+        argStart=2;
+      } else {
+        argStart=1;
+      }
+      arg=&argv[i][argStart];
+      eqSplit=arg.find_first_of('=');
+      if (eqSplit==string::npos) {
+        if (needsValue(arg)) {
+          if ((i+1)<argc) {
+            val=argv[i+1];
+            i++;
+          } else {
+            printf("incomplete param %s.\n",arg.c_str());
+            return 1;
+          }
+        }
+      } else {
+        val=arg.substr(eqSplit+1);
+        arg=arg.substr(0,eqSplit);
+      }
+      //printf("arg %s. val %s\n",arg.c_str(),val.c_str());
+      for (size_t j=0; j<params.size(); j++) {
+        if (params[j].name==arg || params[j].shortName==arg) {
+          if (!params[j].func(val)) return 1;
+          break;
+        }
+      }
+    } else {
+      mdat=argv[i];
+    }
+  }
+
+  if (mdat=="") {
+    printf("usage: %s [-params] mdat.file [smpl.file]\n",argv[0]);
+    return 1;
+  }
+
+  if (smpl=="") {
+    size_t repPos=mdat.rfind("mdat");
+    if (repPos==string::npos) {
+      printf("cannot auto-locate smpl file. please provide it manually.\n");
+      return 1;
+    }
+    smpl=mdat;
+    smpl.replace(repPos,4,"smpl");
+  }
+
+  songid=0;
+
+  if (!p.load(mdat.c_str(),smpl.c_str())) {
     printf("could not open song...\n");
     return 1;
   }
