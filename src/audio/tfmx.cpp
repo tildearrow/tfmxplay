@@ -550,7 +550,20 @@ void TFMXPlayer::runMacro(int i) {
         break;
       case mSetNote:
         // TODO detune
-        cstat[i].freq=getPeriod(m.data[0]+3);
+        if (cstat[i].portaActive) {
+          cstat[i].portaTarget=m.data[0]+3;
+          if (cstat[i].portaAmt<0) {
+            if (getPeriod(cstat[i].portaTarget)>cstat[i].freq) {
+              cstat[i].portaAmt=-cstat[i].portaAmt;
+            }
+          } else {
+            if (getPeriod(cstat[i].portaTarget)<cstat[i].freq) {
+              cstat[i].portaAmt=-cstat[i].portaAmt;
+            }
+          }
+        } else {
+          cstat[i].freq=getPeriod(m.data[0]+3);
+        }
         if (chan[i].on) return;
         break;
       case mAddNote:
