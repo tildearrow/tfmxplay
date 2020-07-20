@@ -34,7 +34,15 @@ const char* macroName[]={
   "AddVolNote",
   "SetPrevNote",
   "Signal",
-  "PlayMacro"
+  "PlayMacro",
+  "SIDBegin",
+  "SIDLen",
+  "SID2Off",
+  "SID2Vib",
+  "SID1Off",
+  "SID1Vib",
+  "SIDFilter",
+  "SIDStop"
 };
 
 const char* noteName[]={
@@ -479,7 +487,7 @@ void TFMXPlayer::runMacro(int i) {
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
-        if (m.data[0]|m.data[1]|m.data[2]) {
+        if (m.data[0]) {
           cstat[i].imm=true;
           return;
         } else {

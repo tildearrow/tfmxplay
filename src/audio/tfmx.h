@@ -91,7 +91,15 @@ enum TFMXMacroOps {
   mAddVolNote,
   mSetPrevNote,
   mSignal,
-  mPlayMacro
+  mPlayMacro,
+  mSIDBegin,
+  mSIDLen,
+  mSID2Off,
+  mSID2Vib,
+  mSID1Off,
+  mSID1Vib,
+  mSIDFilter,
+  mSIDStop
 };
 
 class TFMXPlayer {
