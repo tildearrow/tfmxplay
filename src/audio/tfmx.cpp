@@ -463,7 +463,6 @@ bool TFMXPlayer::updateTrack(int tr) {
 
 void TFMXPlayer::reset(int i) {
   cstat[i].offReset=false;
-  cstat[i].freq=0;
   cstat[i].detune=0;
   chan[i].pos=0;
   chan[i].apos=0;
@@ -555,7 +554,20 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) return;
         break;
       case mAddNote:
-        cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+        if (cstat[i].portaActive) {
+          cstat[i].portaTarget=cstat[i].note+(signed char)m.data[0]+3;
+          if (cstat[i].portaAmt<0) {
+            if (getPeriod(cstat[i].portaTarget)>cstat[i].freq) {
+              cstat[i].portaAmt=-cstat[i].portaAmt;
+            }
+          } else {
+            if (getPeriod(cstat[i].portaTarget)<cstat[i].freq) {
+              cstat[i].portaAmt=-cstat[i].portaAmt;
+            }
+          }
+        } else {
+          cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+        }
         if (chan[i].on) return;
         break;
       case mSetPeriod:
@@ -577,12 +589,11 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].detune=0;
         break;
       case mPorta:
-        printf("MPORTA\n");
         cstat[i].portaActive=true;
         cstat[i].portaTime=0;
         cstat[i].portaTimeC=m.data[0];
         cstat[i].portaAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
-        if (cstat[i].portaAmt==0 || cstat[i].portaTimeC==0) cstat[i].portaActive=false;
+        cstat[i].portaTarget=-1;
         break;
       case mEnv:
         cstat[i].envActive=true;
