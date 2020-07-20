@@ -97,6 +97,8 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   if (head.patSeek==0) head.patSeek=0x400;
   if (head.macroSeek==0) head.macroSeek=0x600;
   
+  printf("ords at %x, pats at %x, macros at %x\n",head.ordSeek,head.patSeek,head.macroSeek);
+  
   // read pattern pointers
   fseek(f,head.patSeek,SEEK_SET);
   fread(patPoint,4,128,f);
@@ -131,6 +133,8 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   
   // read macros
   for (int i=0; i<128; i++) {
+    printf("at %x\n",patPoint[i]);
+    if (patPoint[i]==0) abort();
     fseek(f,macroPoint[i],SEEK_SET);
     s=0;
     while (true) {
@@ -396,21 +400,27 @@ bool TFMXPlayer::updateTrack(int tr) {
           break;
         case pGsPt:
           printf("unhandled gosub\n");
+          abort();
           break;
         case pRoPt:
           printf("unhandled return\n");
+          abort();
           break;
         case pFade:
           printf("unhandled fade\n");
+          abort();
           break;
         case pPPat:
           printf("unhandled playpat\n");
+          abort();
           break;
         case pPort:
           printf("unhandled porta\n");
+          abort();
           break;
         case pLock:
           printf("unhandled lock\n");
+          abort();
           break;
         case pStCu:
           printf("custom stop\n");
@@ -628,7 +638,8 @@ void TFMXPlayer::runMacro(int i) {
 }
 
 void TFMXPlayer::nextTick() {
-  if (trace) printf("\x1b[1;36m--- FRAME %d ---\x1b[m\n",frame++);
+  if (trace) printf("\x1b[1;36m--- FRAME %d ---\x1b[m\n",frame);
+  frame++;
   if (--curTick<0) {
     curTick=speed;
     for (int i=0; i<8; i++) {
@@ -767,10 +778,9 @@ void TFMXPlayer::handleLoop(int c) {
   }
 }
 
-void TFMXPlayer::nextSample(short* l, short* r) {
+void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   int la, ra;
   la=0; ra=0;
-#ifdef HLE
   fractAccum+=hleRate;
   intAccum=fractAccum;
   fractAccum-=intAccum;
@@ -780,27 +790,45 @@ void TFMXPlayer::nextSample(short* l, short* r) {
     ciaCount+=ciaVal;
     nextTick();
   }
-#else
-  if (--ciaCount<0) {
-    ciaCount=ciaVal;
-    nextTick();
-  }
-#endif
   
   for (int i=0; i<4; i++) {
     if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
-#ifdef HLE
       chan[i].seek-=intAccum;
-#else
-      --chan[i].seek;
-#endif
       if (chan[i].seek<0) {
-#ifdef HLE
         chan[i].seek+=chan[i].freq+1;
-#else
+        chan[i].apos++;
+        if (chan[i].apos>=(chan[i].len*2)) {
+          // interrupt
+          handleLoop(i);
+          chan[i].apos=0;
+        }
+      }
+    }
+    if (i==0 || i==3) {
+      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+    } else {
+      ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+    }
+  }
+  *l=la;
+  *r=ra;
+}
+
+void TFMXPlayer::nextSample(short* l, short* r) {
+  int la, ra;
+  la=0; ra=0;
+  if (--ciaCount<0) {
+    ciaCount=ciaVal;
+    nextTick();
+  }
+  
+  for (int i=0; i<4; i++) {
+    if (!chan[i].on) continue;
+    if (chan[i].freq>=100) {
+      --chan[i].seek;
+      if (chan[i].seek<0) {
         chan[i].seek=chan[i].freq;
-#endif
         chan[i].apos++;
         if (chan[i].apos>=(chan[i].len*2)) {
           // interrupt

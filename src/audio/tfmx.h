@@ -3,8 +3,6 @@
 #include <math.h>
 #include <arpa/inet.h>
 
-#define HLE
-
 struct TFMXHeader {
   char ident[10];
   short undoc1;
@@ -204,6 +202,7 @@ class TFMXPlayer {
     float hleRate;
     bool trace;
     void nextSample(short* l, short* r);
+    void nextSampleHLE(short* l, short* r);
     void setCIAVal(int val);
     int play(int song);
     int stop();

@@ -26,7 +26,7 @@ std::vector<Param> params;
 
 bool needsValue(string param) {
   for (size_t i=0; i<params.size(); i++) {
-    if (params[i].name==param) {
+    if (params[i].name==param || params[i].shortName==param) {
       return params[i].value;
     }
   }
@@ -41,10 +41,11 @@ SDL_AudioDeviceID ai;
 SDL_AudioSpec ac;
 SDL_AudioSpec ar;
 
-bool quit, ntsc;
+bool quit, ntsc, hle;
 
 int sr;
 double targetSR;
+int songid;
 
 TFMXPlayer p;
 
@@ -66,6 +67,25 @@ static void handleTerm(int data) {
   exit(0);
 }
 
+static void processHLE(void* userdata, Uint8* stream, int len) {
+  short* buf[2];
+  short temp[2];
+  int wc;
+  int writable;
+  unsigned int nframes=len/(2*ar.channels);
+  buf[0]=(short*)stream;
+  buf[1]=&buf[0][1];
+
+  int runtotal=nframes;
+
+  for (size_t i=0; i<runtotal; i++) {
+    p.nextSampleHLE(&temp[0],&temp[1]);
+
+    buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
+    buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
+  }
+}
+
 static void process(void* userdata, Uint8* stream, int len) {
   short* buf[2];
   short temp[2];
@@ -75,27 +95,17 @@ static void process(void* userdata, Uint8* stream, int len) {
   buf[0]=(short*)stream;
   buf[1]=&buf[0][1];
   
-#ifdef HLE
-  int runtotal=nframes;
-#else
   int runtotal=blip_clocks_needed(bb[0],nframes);
-#endif
 
   for (size_t i=0; i<runtotal; i++) {
     p.nextSample(&temp[0],&temp[1]);
 
-#ifdef HLE
-    buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
-    buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
-#else
     blip_add_delta(bb[0],i,(temp[0]+(temp[1]>>2)-prevSample[0])<<1);
     blip_add_delta(bb[1],i,(temp[1]+(temp[0]>>2)-prevSample[1])<<1);
     prevSample[0]=temp[0]+(temp[1]>>2);
     prevSample[1]=temp[1]+(temp[0]>>2);
-#endif
   }
 
-#ifndef HLE
   blip_end_frame(bb[0],runtotal);
   blip_end_frame(bb[1],runtotal);
 
@@ -106,10 +116,9 @@ static void process(void* userdata, Uint8* stream, int len) {
     buf[0][i*ar.channels]=bbOut[0][i];
     buf[1][i*ar.channels]=bbOut[1][i];
   }
-#endif
 }
 
-bool pHelp(string) {
+bool parHelp(string) {
   printf("usage: tfmxplay [-params] mdat.file [smpl.file]\n");
   for (auto& i: params) {
     if (i.value) {
@@ -121,21 +130,42 @@ bool pHelp(string) {
   return false;
 }
 
-bool pNTSC(string) {
+bool parNTSC(string) {
   ntsc=true;
   return true;
 }
 
-void initParams() {
-  params.push_back(Param("h","help",false,pHelp,"","display this help"));
+bool parSong(string v) {
+  try {
+    songid=std::stoi(v);
+    if (songid<0 || songid>127) {
+      printf("song number must be between 0 and 127.\n");
+      return false;
+    }
+  } catch (std::exception& e) {
+    printf("type a number, silly.\n");
+    return false;
+  }
+  return true;
+}
 
-  params.push_back(Param("n","ntsc",false,pNTSC,"","use NTSC rate"));
+bool parHLE(string) {
+  hle=true;
+  return true;
+}
+
+void initParams() {
+  params.push_back(Param("h","help",false,parHelp,"","display this help"));
+
+  params.push_back(Param("s","song",true,parSong,"num","select song"));
+  params.push_back(Param("n","ntsc",false,parNTSC,"","use NTSC rate"));
+  params.push_back(Param("l","hle",false,parHLE,"","use high-level emulation (lower quality but much faster)"));
 }
 
 int main(int argc, char** argv) {
   string mdat, smpl;
-  int songid;
   ntsc=false;
+  songid=0;
 
   initParams();
 
@@ -174,7 +204,13 @@ int main(int argc, char** argv) {
         }
       }
     } else {
-      mdat=argv[i];
+      if (mdat=="") {
+        mdat=argv[i];
+      } else {
+        if (smpl=="") {
+          smpl=argv[i];
+        }
+      }
     }
   }
 
@@ -193,8 +229,6 @@ int main(int argc, char** argv) {
     smpl.replace(repPos,4,"smpl");
   }
 
-  songid=0;
-
   if (!p.load(mdat.c_str(),smpl.c_str())) {
     printf("could not open song...\n");
     return 1;
@@ -207,7 +241,11 @@ int main(int argc, char** argv) {
   ac.format=AUDIO_S16;
   ac.channels=2;
   ac.samples=1024;
-  ac.callback=process;
+  if (hle) {
+    ac.callback=processHLE;
+  } else {
+    ac.callback=process;
+  }
   ac.userdata=NULL;
   ai=SDL_OpenAudioDevice(SDL_GetAudioDeviceName(0,0),0,&ac,&ar,SDL_AUDIO_ALLOW_ANY_CHANGE);
   sr=ar.freq;
