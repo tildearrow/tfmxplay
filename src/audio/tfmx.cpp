@@ -134,7 +134,11 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   // read macros
   for (int i=0; i<128; i++) {
     printf("at %x\n",patPoint[i]);
-    if (patPoint[i]==0) abort();
+    if (patPoint[i]==0) {
+      // write empty macro
+      macro[i][0].op=mStop;
+      continue;
+    }
     fseek(f,macroPoint[i],SEEK_SET);
     s=0;
     while (true) {
@@ -496,6 +500,11 @@ void TFMXPlayer::runMacro(int i) {
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
+        if (m.data[2]) {
+          cstat[i].changeVol=true;
+          chan[i].nextvol=m.data[2];
+          if (trace) printf("\x1b[1;32m%d: setting vol in-place\x1b[m\n",i);
+        }
         if (m.data[0]) {
           cstat[i].imm=true;
           return;
