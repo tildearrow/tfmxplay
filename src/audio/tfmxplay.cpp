@@ -53,6 +53,10 @@ struct sigaction intsa;
 struct termios termprop;
 struct termios termpropold;
 
+const char* truth[]={
+  "false", "true"
+};
+
 void finish() {
   if (tcsetattr(0,TCSAFLUSH,&termpropold)!=0) {
     printf("WARNING: FAILURE TO SET FLAGS TO QUIT!\n");
@@ -292,30 +296,53 @@ int main(int argc, char** argv) {
     int c;
     c=fgetc(stdin);
     if (c==EOF) break;
-    if (c>='A') {
-      p.lock(3,32);
-      p.playMacro(c-'A',20,15,3,0);
-    } else {
-      switch (c) {
-        case '\n':
-          p.trace=!p.trace;
-          break;
-        case '\\':
-          p.setCIAVal(70937*6);
-          break;
-        case '1':
-          p.lock(0,32);
-          break;
-        case '2':
-          p.lock(1,32);
-          break;
-        case '3':
-          p.lock(2,32);
-          break;
-        case '4':
+    switch (c) {
+      case '\n':
+        p.trace=!p.trace;
+        printf("frame trace: %s\n",truth[p.trace]);
+        break;
+      case '\\':
+        p.setCIAVal(70937*6);
+        printf("slow mode\n");
+        break;
+      case '\b': case 127:
+        p.traceS=!p.traceS;
+        printf("register trace: %s\n",truth[p.traceS]);
+        break;
+      case '1':
+        p.lock(0,32);
+        break;
+      case '2':
+        p.lock(1,32);
+        break;
+      case '3':
+        p.lock(2,32);
+        break;
+      case '4':
+        p.lock(3,32);
+        break;
+      case '5':
+        p.traceC[0]=!p.traceC[0];
+        printf("channel 0 macro trace: %s\n",truth[p.traceC[0]]);
+        break;
+      case '6':
+        p.traceC[1]=!p.traceC[1];
+        printf("channel 1 macro trace: %s\n",truth[p.traceC[1]]);
+        break;
+      case '7':
+        p.traceC[2]=!p.traceC[2];
+        printf("channel 2 macro trace: %s\n",truth[p.traceC[2]]);
+        break;
+      case '8':
+        p.traceC[3]=!p.traceC[3];
+        printf("channel 3 macro trace: %s\n",truth[p.traceC[3]]);
+        break;
+      default:
+        if (c>='A') {
           p.lock(3,32);
-          break;
-      }
+          p.playMacro(c-'A',20,15,3,0);
+        }
+        break;
     }
   }
 

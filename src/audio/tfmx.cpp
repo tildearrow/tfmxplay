@@ -496,14 +496,14 @@ void TFMXPlayer::runMacro(int i) {
   }
   while (true) {
     m=macro[cstat[i].index][cstat[i].pos];
-    if (trace) printf("\x1b[1;33m%d: %.2x: %s %.2x%.2x%.2x\x1b[m\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
+    if (traceC[i]) printf("\x1b[1;33m%d: %.2x: %s %.2x%.2x%.2x\x1b[m\n",i,cstat[i].pos,macroName[m.op],m.data[0],m.data[1],m.data[2]);
     cstat[i].pos++;
     switch (m.op) {
       case mOffReset:
         if (m.data[2]) {
           cstat[i].changeVol=true;
           chan[i].nextvol=m.data[2];
-          if (trace) printf("\x1b[1;32m%d: setting vol in-place\x1b[m\n",i);
+          if (traceC[i]) printf("\x1b[1;32m%d: setting vol in-place\x1b[m\n",i);
         }
         if (m.data[0]) {
           cstat[i].imm=true;
@@ -529,9 +529,10 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mLoop:
-        printf("%d: call to loop\n",i);
+        if (m.data[0]) {
+          printf("%d: call to loop %d times\n",i,m.data[0]);
+        }
         cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
-        printf("new pos: %d\n",cstat[i].pos);
         break;
       case mLoopUp:
         printf("%d: call to loop UP!!!\n",i);
@@ -543,7 +544,7 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) {
           chan[i].nextvol=m.data[2]+cstat[i].vol*3;
           cstat[i].changeVol=true;
-          if (trace) printf("\x1b[1;32mPOST.\x1b[m\n");
+          if (traceC[i]) printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
           chan[i].vol=m.data[2]+cstat[i].vol*3;
         }
@@ -552,7 +553,7 @@ void TFMXPlayer::runMacro(int i) {
         if (chan[i].on) {
           chan[i].nextvol=m.data[2];
           cstat[i].changeVol=true;
-          if (trace) printf("\x1b[1;32mPOST.\x1b[m\n");
+          if (traceC[i]) printf("\x1b[1;32mPOST.\x1b[m\n");
         } else {
           chan[i].vol=m.data[2];
         }
@@ -603,6 +604,10 @@ void TFMXPlayer::runMacro(int i) {
       case mOn:
         chan[i].on=true;
         break;
+      case mCont:
+        cstat[i].index=m.data[0];
+        cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+        break;
       case mVibrato:
         cstat[i].vibTimeC=m.data[0];
         cstat[i].vibTime=m.data[0]>>1;
@@ -645,14 +650,25 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mAddBegin:
-        cstat[i].addBegin=m.data[0];
-        cstat[i].addBeginC=m.data[0];
-        cstat[i].addBeginAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
-        if (cstat[i].addBeginAmt<0) {
-          cstat[i].addBeginAmt=-cstat[i].addBeginAmt;
-          cstat[i].addBeginDir=true;
+        if (m.data[0]) {
+          cstat[i].addBegin=m.data[0];
+          cstat[i].addBeginC=m.data[0];
+          cstat[i].addBeginAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
+          if (cstat[i].addBeginAmt<0) {
+            cstat[i].addBeginAmt=-cstat[i].addBeginAmt;
+            cstat[i].addBeginDir=true;
+          } else {
+            cstat[i].addBeginDir=false;
+          }
         } else {
-          cstat[i].addBeginDir=false;
+          cstat[i].postDMAAdd=(signed short)((m.data[1]<<8)|(m.data[2]));
+        }
+        break;
+      case mAddLen:
+        if (chan[i].on) {
+          cstat[i].postDMALen=chan[i].len+(signed short)((m.data[1]<<8)|(m.data[2]));
+        } else {
+          chan[i].len+=(signed short)((m.data[1]<<8)|(m.data[2]));
         }
         break;
       case mSetLoop:
@@ -795,6 +811,21 @@ void TFMXPlayer::nextTick() {
       }
     }
   }
+  // trace
+  if (traceS) {
+    for (int i=0; i<4; i++) {
+      printf("%5x:%4x  ",chan[i].pos,chan[i].len);
+    }
+    printf("\n");
+    for (int i=0; i<4; i++) {
+      printf("/%.4x  v%.2x  ",chan[i].freq,chan[i].vol);
+    }
+    printf("\n");
+    for (int i=0; i<4; i++) {
+      printf("%.5x  %s  ",chan[i].apos,chan[i].on?("\x1b[1;32m ON\x1b[m"):("\x1b[1;31mOFF\x1b[m"));
+    }
+    printf("\n\x1b[3A\x1b[J");
+  }
 }
 
 void TFMXPlayer::handleLoop(int c) {
@@ -813,7 +844,7 @@ void TFMXPlayer::handleLoop(int c) {
   if (cstat[c].waitingDMA>0) {
     if (trace) printf("\x1b[36m- subtick %d/%d\x1b[m\n",ciaVal-ciaCount,ciaVal);
     cstat[c].waitingDMA--;
-    if (trace) printf("%d: DMA reach\n",c);
+    if (traceC[c]) printf("%d: DMA reach\n",c);
     if (cstat[c].waitingDMA==0) {
       runMacro(c);
     }
