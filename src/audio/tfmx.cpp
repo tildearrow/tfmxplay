@@ -616,6 +616,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].portaTimeC=m.data[0];
         cstat[i].portaAmt=(signed short)((m.data[1]<<8)|(m.data[2]));
         cstat[i].portaTarget=-1;
+        cstat[i].vibTimeC=0;
         break;
       case mEnv:
         cstat[i].envActive=true;
@@ -703,7 +704,7 @@ void TFMXPlayer::nextTick() {
         } else {
           cstat[i].postDMAAdd+=cstat[i].addBeginAmt;
         }
-        if (--cstat[i].addBegin<0) {
+        if (--cstat[i].addBegin<=0) {
           cstat[i].addBegin=cstat[i].addBeginC;
           cstat[i].addBeginDir=!cstat[i].addBeginDir;
         }
