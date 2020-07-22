@@ -632,6 +632,11 @@ void TFMXPlayer::runMacro(int i) {
       case mWaitUp:
         if (cstat[i].keyon) {
           cstat[i].waitingKeyUp=true;
+          if (m.data[2]==0) {
+            cstat[i].tim=-10;
+          } else {
+            cstat[i].tim=m.data[2];
+          }
         }
         return;
         break;
@@ -711,9 +716,9 @@ void TFMXPlayer::nextTick() {
       }
       if (cstat[i].vibTimeC>0) {
         if (cstat[i].vibDir) {
-          cstat[i].detune+=cstat[i].vibAmt;
-        } else {
           cstat[i].detune-=cstat[i].vibAmt;
+        } else {
+          cstat[i].detune+=cstat[i].vibAmt;
         }
         if (--cstat[i].vibTime<=0) {
           cstat[i].vibTime=cstat[i].vibTimeC;
@@ -765,8 +770,14 @@ void TFMXPlayer::nextTick() {
         chan[i].vol=chan[i].nextvol;
       }
       if (cstat[i].waitingDMA) continue;
-      if (cstat[i].waitingKeyUp && cstat[i].keyon) continue;
-      if (--cstat[i].tim>=0) continue;
+      if (cstat[i].waitingKeyUp) {
+        if (cstat[i].keyon) {
+          if (cstat[i].tim==-10) continue;
+          if (--cstat[i].tim>=0) continue;
+        }
+      } else {
+        if (--cstat[i].tim>=0) continue;
+      }
       runMacro(i);
       if (cstat[i].offReset) {
         reset(i);
