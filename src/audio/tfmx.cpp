@@ -174,8 +174,11 @@ int TFMXPlayer::stop() {
 }
 
 // 1400.0f
+// 2034 for NTSC prev
+// 2033.832644628099173553719008 for NTSC
+// 2015.28125 for PAL
 unsigned short getPeriod(unsigned char note) {
-  return 2034/(pow(2,(float)note/12.0f));
+  return 2033.832644628099173553719008/(pow(2,(float)note/12.0f));
 }
 
 void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans) {
@@ -188,6 +191,7 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
   cstat[c].keyon=true;
   cstat[c].waitingDMA=0;
   cstat[c].waitingKeyUp=false;
+  cstat[c].loopCount=0;
 }
 
 void TFMXPlayer::updateRow(int row) {
@@ -529,10 +533,16 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mLoop:
-        if (m.data[0]) {
-          printf("%d: call to loop %d times\n",i,m.data[0]);
+        if (m.data[0]==0) {
+          cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+        } else {
+          if (cstat[i].loopCount==0) {
+            cstat[i].loopCount=m.data[0]+1;
+          }
+          if (--cstat[i].loopCount!=0) {
+            cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+          }
         }
-        cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
         break;
       case mLoopUp:
         printf("%d: call to loop UP!!!\n",i);

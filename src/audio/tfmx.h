@@ -164,13 +164,15 @@ class TFMXPlayer {
     int postDMAPos;
     int postDMALen;
     int postDMAAdd;
+    
+    int loopCount;
 
     short freq, detune;
     
     bool locked;
     int lockTime;
     
-    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), waitingKeyUp(false), keyon(false), offReset(false), gonnaLoop(false), changeVol(false), imm(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), vibTime(0), vibTimeC(0), vibAmt(0), vibDir(false), envTarget(0), envAmt(0), envTime(0), envActive(false), portaTarget(0), portaTime(0), portaTimeC(0), portaAmt(0), portaActive(false), postDMAPos(-1), postDMALen(1), freq(0), detune(0), locked(false), lockTime(0) {}
+    TFMXCStat(): index(-1), pos(0), tim(0), vol(0), note(0), oldnote(0), waitingDMA(false), waitingKeyUp(false), keyon(false), offReset(false), gonnaLoop(false), changeVol(false), imm(false), addBegin(0), addBeginC(0), addBeginAmt(0), addBeginDir(false), vibTime(0), vibTimeC(0), vibAmt(0), vibDir(false), envTarget(0), envAmt(0), envTime(0), envActive(false), portaTarget(0), portaTime(0), portaTimeC(0), portaAmt(0), portaActive(false), postDMAPos(-1), postDMALen(1), loopCount(0), freq(0), detune(0), locked(false), lockTime(0) {}
   } cstat[8];
   
   struct TFMXTStat {
