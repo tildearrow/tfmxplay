@@ -713,7 +713,7 @@ void TFMXPlayer::runMacro(int i) {
         chan[i].looping=false;
         break;
       default:
-        printf("%d: unhandled opcode %x\n",i,m.op);
+        printf("%d: unhandled opcode %x (%s), %.2x%.2x%.2x\n",i,m.op,macroName[m.op],m.data[0],m.data[1],m.data[2]);
         return;
         break;
     }
