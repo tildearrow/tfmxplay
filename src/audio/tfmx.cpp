@@ -545,9 +545,17 @@ void TFMXPlayer::runMacro(int i) {
         }
         break;
       case mLoopUp:
-        printf("%d: call to loop UP!!!\n",i);
         if (cstat[i].keyon) {
-          cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+          if (m.data[0]==0) {
+            cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+          } else {
+            if (cstat[i].loopCount==0) {
+              cstat[i].loopCount=m.data[0]+1;
+            }
+            if (--cstat[i].loopCount!=0) {
+              cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
+            }
+          }
         }
         break;
       case mAddVol:
