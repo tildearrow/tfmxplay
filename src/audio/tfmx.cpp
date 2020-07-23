@@ -400,7 +400,7 @@ bool TFMXPlayer::updateTrack(int tr) {
           break;
         case pVibr:
           if (!cstat[item.chan].locked) {
-            cstat[item.chan].vibTimeC=item.ins;
+            cstat[item.chan].vibTimeC=item.ins&0xfe;
             cstat[item.chan].vibTime=item.ins>>1;
             cstat[item.chan].vibAmt=item.detune;
             cstat[item.chan].vibDir=false;
@@ -637,7 +637,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
         break;
       case mVibrato:
-        cstat[i].vibTimeC=m.data[0];
+        cstat[i].vibTimeC=m.data[0]&0xfe;
         cstat[i].vibTime=m.data[0]>>1;
         cstat[i].vibAmt=m.data[2];
         cstat[i].vibDir=false;
@@ -830,7 +830,7 @@ void TFMXPlayer::nextTick() {
   }
   // update freqs
   for (int i=0; i<4; i++) {
-    chan[i].freq=cstat[i].freq+(cstat[i].detune>>2);
+    chan[i].freq=(cstat[i].freq*(2048+cstat[i].detune))>>11;
     //if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
     
     if (cstat[i].locked) {
