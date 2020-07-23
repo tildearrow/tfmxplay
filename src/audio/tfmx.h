@@ -123,6 +123,7 @@ class TFMXPlayer {
   int macroPoint[128];
   int ciaVal, ciaCount;
   int frame;
+  int loopCount;
   
   struct TFMXCStat {
     int index;
@@ -211,7 +212,7 @@ class TFMXPlayer {
     void lock(int chan, int time);
     bool load(const char* mdat, const char* smpl);
     void playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans);
-    TFMXPlayer(): ciaVal(59659), frame(0), totTracks(0), fractAccum(0), intAccum(0), hleRate(1), trace(false), traceS(false) {
+    TFMXPlayer(): ciaVal(59659), frame(0), loopCount(0), totTracks(0), fractAccum(0), intAccum(0), hleRate(1), trace(false), traceS(false) {
       for (int i=0; i<8; i++) traceC[i]=false;
     }
 };

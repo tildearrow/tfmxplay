@@ -211,8 +211,18 @@ void TFMXPlayer::updateRow(int row) {
         return;
         break;
       case 1: // jump
-        updateRow(track[curRow][2].trans);
-        return;
+        if (track[curRow][3].trans==0) {
+          updateRow(track[curRow][2].trans);
+          return;
+        } else {
+          if (loopCount==0) {
+            loopCount=track[curRow][3].trans+1;
+          }
+          if (--loopCount!=0) {
+            updateRow(track[curRow][2].trans);
+            return;
+          }
+        }
         break;
       case 2: // tempo
         printf("tempo\n");
