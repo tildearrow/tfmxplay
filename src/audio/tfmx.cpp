@@ -830,7 +830,7 @@ void TFMXPlayer::nextTick() {
   }
   // update freqs
   for (int i=0; i<4; i++) {
-    chan[i].freq=(float)cstat[i].freq*pow(2,(float)cstat[i].detune/(6*256.0f));
+    chan[i].freq=cstat[i].freq+(cstat[i].detune>>2);
     //if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
     
     if (cstat[i].locked) {
