@@ -1,7 +1,6 @@
 # tfmxplay
 
-- accurate vibratos
-- only vibrato or porta can run but not both (see AAAAAA for more)
+- accurate vibratos (almost there)
 - song fading
 - lots of other things
 
