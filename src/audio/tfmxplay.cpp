@@ -1,5 +1,3 @@
-#define _SYNC_VBLANK
-
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
@@ -10,7 +8,7 @@
 #include <SDL2/SDL.h>
 #ifdef _SYNC_VBLANK
 #include <fcntl.h>
-#include <xf86drm.h>
+#include <libdrm/drm.h>
 #endif
 
 #include "../ta-time.h"
@@ -269,13 +267,15 @@ int main(int argc, char** argv) {
 #ifdef _SYNC_VBLANK
   if (syncVBlank) {
     syncfd=open("/dev/dri/card0",O_RDWR);
-    if (syncfd<0) return 1;
-    drmVersionPtr ver=drmGetVersion(syncfd);
-    if (ver==NULL) {
+    if (syncfd<0) {
+      perror("cannot open sync");
+      return 1;
+    }
+    drm_version ver;
+    if (ioctl(syncfd,DRM_IOCTL_VERSION,&ver)<0) {
       printf("could not get version.\n");
       return 1;
     }
-    drmFreeVersion(ver);
   }
 #endif
 
@@ -337,13 +337,12 @@ int main(int argc, char** argv) {
 
 #ifdef _SYNC_VBLANK
   struct timespec vt1, vt2;
-  drmVBlank vblank;
-  drmVBlankReply vreply;
+  drm_wait_vblank_t vblank;
   vt1=curTime(CLOCK_MONOTONIC);
   if (syncVBlank) while (!quit) {
     vblank.request.sequence=1;
-    vblank.request.type=DRM_VBLANK_RELATIVE;
-    if (drmWaitVBlank(syncfd,&vblank)<0) continue;
+    vblank.request.type=_DRM_VBLANK_RELATIVE;
+    if (ioctl(syncfd,DRM_IOCTL_WAIT_VBLANK,&vblank)<0) continue;
     vt2=curTime(CLOCK_MONOTONIC);
     if ((vt2-vt1).tv_nsec>1000000) {
       p.setCIAVal(targetSR*((vt2-vt1).tv_nsec/1000)/1000000);

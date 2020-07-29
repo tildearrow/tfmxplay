@@ -109,10 +109,11 @@ class TFMXPlayer {
     unsigned short freq;
     signed char vol;
     signed char nextvol;
+    short oldS;
     bool on;
     bool looping;
     bool muted;
-    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), on(false), looping(false), muted(false) {}
+    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), oldS(0), on(false), looping(false), muted(false) {}
   } chan[8]; 
   signed char* smpl;
   size_t smplLen;

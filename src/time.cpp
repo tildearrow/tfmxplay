@@ -62,7 +62,7 @@ std::string tstos(struct timespec ts) {
   ret+=std::to_string(ts.tv_sec);
   ret+=".";
   for (int i=0; i<9; i++) {
-    sdeci.insert(0,1,'0'+(deci%10));
+    sdeci.insert(0,1,(char)('0'+(deci%10)));
     deci/=10;
   }
   while (sdeci.size()>1 && *(sdeci.end()-1)=='0') {

@@ -882,8 +882,13 @@ void TFMXPlayer::handleLoop(int c) {
   }
 }
 
+inline short nearSyn(short oldS, short newS, unsigned char pos) {
+  return newS+((((int)(oldS-newS))*(int)pos)>>9);
+}
+
 void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   int la, ra;
+  short newS;
   la=0; ra=0;
   fractAccum+=hleRate;
   intAccum=fractAccum;
@@ -909,11 +914,14 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
         }
       }
     }
+    if (chan[i].muted) continue;
+    newS=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     if (i==0 || i==3) {
-      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      la+=nearSyn(chan[i].oldS,newS,(chan[i].seek<<8)/chan[i].freq);
     } else {
-      ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      ra+=nearSyn(chan[i].oldS,newS,(chan[i].seek<<8)/chan[i].freq);
     }
+    chan[i].oldS=newS;
   }
   *l=la;
   *r=ra;
