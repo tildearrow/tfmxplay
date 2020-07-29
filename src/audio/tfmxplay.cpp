@@ -47,7 +47,8 @@ SDL_AudioDeviceID ai;
 SDL_AudioSpec ac;
 SDL_AudioSpec ar;
 
-bool quit, ntsc, hle;
+bool quit, ntsc, hle, dumpFile;
+FILE* dump;
 
 int sr, speed;
 double targetSR;
@@ -78,7 +79,14 @@ void finish() {
 static void handleTerm(int data) {
   quit=true;
   printf("quit!\n");
+  SDL_CloseAudioDevice(ai);
   finish();
+  if (dumpFile) {
+    printf("closing dump\n");
+    fflush(dump);
+    fclose(dump);
+    dumpFile=false;
+  }
   exit(0);
 }
 
@@ -96,8 +104,18 @@ static void processHLE(void* userdata, Uint8* stream, int len) {
   for (size_t i=0; i<runtotal; i++) {
     p.nextSampleHLE(&temp[0],&temp[1]);
 
-    buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
-    buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
+    //buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
+    //buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
+    buf[0][i*ar.channels]=temp[0];
+    buf[1][i*ar.channels]=temp[1];
+  }
+  if (dumpFile) {
+    if (fwrite(stream,1,len,dump)<0) {
+      perror("cannot write");
+      printf("stopping dump!\n");
+      fclose(dump);
+      dumpFile=false;
+    }
   }
 }
 
@@ -134,6 +152,15 @@ static void process(void* userdata, Uint8* stream, int len) {
   for (size_t i=0; i<nframes; i++) {
     buf[0][i*ar.channels]=bbOut[0][i];
     buf[1][i*ar.channels]=bbOut[1][i];
+  }
+
+  if (dumpFile) {
+    if (fwrite(stream,1,len,dump)<0) {
+      perror("cannot write");
+      printf("stopping dump!\n");
+      fclose(dump);
+      dumpFile=false;
+    }
   }
 }
 
@@ -180,12 +207,18 @@ bool parVBlank(string) {
 }
 #endif
 
+bool parDump(string) {
+  dumpFile=true;
+  return true;
+}
+
 void initParams() {
   params.push_back(Param("h","help",false,parHelp,"","display this help"));
 
   params.push_back(Param("s","song",true,parSong,"num","select song"));
   params.push_back(Param("n","ntsc",false,parNTSC,"","use NTSC rate"));
   params.push_back(Param("l","hle",false,parHLE,"","use high-level emulation (lower quality but much faster)"));
+  params.push_back(Param("d","dump",false,parDump,"","dump 16-bit stereo raw output to tfmx.raw"));
 
 #ifdef _SYNC_VBLANK
   params.push_back(Param("V","vblank",false,parVBlank,"","sync to VBlank"));
@@ -195,7 +228,11 @@ void initParams() {
 int main(int argc, char** argv) {
   string mdat, smpl;
   ntsc=false;
+  dumpFile=false;
   songid=0;
+#ifdef _SYNC_VBLANK
+  syncVBlank=false;
+#endif
 
   initParams();
 
@@ -278,6 +315,14 @@ int main(int argc, char** argv) {
     }
   }
 #endif
+
+  if (dumpFile) {
+    dump=fopen("tfmx.raw","wb");
+    if (dump==NULL) {
+      perror("cannot dump");
+      return 1;
+    }
+  }
 
   printf("opening audio\n");
   
@@ -449,6 +494,13 @@ int main(int argc, char** argv) {
   }
 
   SDL_CloseAudioDevice(ai);
+
+  if (dumpFile) {
+    printf("closing dump\n");
+    fflush(dump);
+    fclose(dump);
+    dumpFile=false;
+  }
   
   printf("quit!\n");
   finish();
