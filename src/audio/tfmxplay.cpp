@@ -1,3 +1,5 @@
+#define _SYNC_VBLANK
+
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
@@ -6,6 +8,12 @@
 #include <string>
 #include <vector>
 #include <SDL2/SDL.h>
+#ifdef _SYNC_VBLANK
+#include <fcntl.h>
+#include <xf86drm.h>
+#endif
+
+#include "../ta-time.h"
 
 #include "blip_buf.h"
 #include "tfmx.h"
@@ -43,7 +51,7 @@ SDL_AudioSpec ar;
 
 bool quit, ntsc, hle;
 
-int sr;
+int sr, speed;
 double targetSR;
 int songid;
 
@@ -52,6 +60,11 @@ TFMXPlayer p;
 struct sigaction intsa;
 struct termios termprop;
 struct termios termpropold;
+
+#ifdef _SYNC_VBLANK
+int syncfd;
+bool syncVBlank;
+#endif
 
 const char* truth[]={
   "false", "true"
@@ -98,6 +111,10 @@ static void process(void* userdata, Uint8* stream, int len) {
   unsigned int nframes=len/(2*ar.channels);
   buf[0]=(short*)stream;
   buf[1]=&buf[0][1];
+  
+  blip_set_rates(bb[0],targetSR,sr);
+  blip_set_rates(bb[1],targetSR,sr);
+  p.hleRate=float((double)targetSR/(double)sr);
   
   int runtotal=blip_clocks_needed(bb[0],nframes);
 
@@ -158,12 +175,23 @@ bool parHLE(string) {
   return true;
 }
 
+#ifdef _SYNC_VBLANK
+bool parVBlank(string) {
+  syncVBlank=true;
+  return true;
+}
+#endif
+
 void initParams() {
   params.push_back(Param("h","help",false,parHelp,"","display this help"));
 
   params.push_back(Param("s","song",true,parSong,"num","select song"));
   params.push_back(Param("n","ntsc",false,parNTSC,"","use NTSC rate"));
   params.push_back(Param("l","hle",false,parHLE,"","use high-level emulation (lower quality but much faster)"));
+
+#ifdef _SYNC_VBLANK
+  params.push_back(Param("V","vblank",false,parVBlank,"","sync to VBlank"));
+#endif
 }
 
 int main(int argc, char** argv) {
@@ -237,6 +265,20 @@ int main(int argc, char** argv) {
     printf("could not open song...\n");
     return 1;
   }
+
+#ifdef _SYNC_VBLANK
+  if (syncVBlank) {
+    syncfd=open("/dev/dri/card0",O_RDWR);
+    if (syncfd<0) return 1;
+    drmVersionPtr ver=drmGetVersion(syncfd);
+    if (ver==NULL) {
+      printf("could not get version.\n");
+      return 1;
+    }
+    drmFreeVersion(ver);
+  }
+#endif
+
   printf("opening audio\n");
   
   SDL_Init(SDL_INIT_AUDIO);
@@ -255,11 +297,12 @@ int main(int argc, char** argv) {
   sr=ar.freq;
   if (ntsc) {
     targetSR=3579545;
-    p.setCIAVal(59659);
+    speed=59659;
   } else {
     targetSR=3546895;
-    p.setCIAVal(70937);
+    speed=70937;
   }
+  p.setCIAVal(speed);
 
   bb[0]=blip_new(32768);
   bb[1]=blip_new(32768);
@@ -291,6 +334,23 @@ int main(int argc, char** argv) {
   //p.lock(0,2000000);
   //p.lock(1,2000000);
   //p.lock(3,2000000);
+
+#ifdef _SYNC_VBLANK
+  struct timespec vt1, vt2;
+  drmVBlank vblank;
+  drmVBlankReply vreply;
+  vt1=curTime(CLOCK_MONOTONIC);
+  if (syncVBlank) while (!quit) {
+    vblank.request.sequence=1;
+    vblank.request.type=DRM_VBLANK_RELATIVE;
+    if (drmWaitVBlank(syncfd,&vblank)<0) continue;
+    vt2=curTime(CLOCK_MONOTONIC);
+    if ((vt2-vt1).tv_nsec>1000000) {
+      p.setCIAVal(targetSR*((vt2-vt1).tv_nsec/1000)/1000000);
+    }
+    vt1=vt2;
+  } else
+#endif
   
   while (!quit) {
     int c;
@@ -302,24 +362,67 @@ int main(int argc, char** argv) {
         printf("frame trace: %s\n",truth[p.trace]);
         break;
       case '\\':
-        p.setCIAVal(70937*6);
-        printf("slow mode\n");
+        speed=70937*6;
+        p.setCIAVal(speed);
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
         break;
-      case '\b': case 127:
+      case '~':
         p.traceS=!p.traceS;
         printf("register trace: %s\n",truth[p.traceS]);
         break;
+      case '\b': case 127:
+        if (ntsc) {
+          speed=59659;
+        } else {
+          speed=70937;
+        }
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        p.setCIAVal(speed);
+        break;
+      case '[':
+        speed+=speed/11;
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        p.setCIAVal(speed);
+        break;
+      case ']':
+        speed-=speed/11;
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        p.setCIAVal(speed);
+        break;
+      case '{':
+        speed<<=1;
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        p.setCIAVal(speed);
+        break;
+      case '}':
+        speed>>=1;
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        p.setCIAVal(speed);
+        break;
+      case '`':
+        ntsc=!ntsc;
+        printf("TV standard: %s\n",ntsc?("NTSC"):("PAL"));
+        if (ntsc) {
+          targetSR=3579545;
+          speed=59659;
+        } else {
+          targetSR=3546895;
+          speed=70937;
+        }
+        p.setCIAVal(speed);
+        printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
+        break;
       case '1':
-        p.lock(0,32);
+        printf("channel 0 mute: %s\n",truth[p.mute(0)]);
         break;
       case '2':
-        p.lock(1,32);
+        printf("channel 1 mute: %s\n",truth[p.mute(1)]);
         break;
       case '3':
-        p.lock(2,32);
+        printf("channel 2 mute: %s\n",truth[p.mute(2)]);
         break;
       case '4':
-        p.lock(3,32);
+        printf("channel 3 mute: %s\n",truth[p.mute(3)]);
         break;
       case '5':
         p.traceC[0]=!p.traceC[0];

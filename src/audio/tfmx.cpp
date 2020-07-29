@@ -941,6 +941,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
         }
       }
     }
+    if (chan[i].muted) continue;
     if (i==0 || i==3) {
       la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     } else {
@@ -958,4 +959,10 @@ void TFMXPlayer::setCIAVal(int val) {
 void TFMXPlayer::lock(int chan, int t) {
   cstat[chan].locked=true;
   cstat[chan].lockTime=t;
+}
+
+bool TFMXPlayer::mute(int c) {
+  chan[c].muted=!chan[c].muted;
+  
+  return chan[c].muted;
 }

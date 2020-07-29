@@ -111,7 +111,8 @@ class TFMXPlayer {
     signed char nextvol;
     bool on;
     bool looping;
-    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), on(false), looping(false) {}
+    bool muted;
+    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), on(false), looping(false), muted(false) {}
   } chan[8]; 
   signed char* smpl;
   size_t smplLen;
@@ -207,6 +208,7 @@ class TFMXPlayer {
     void nextSample(short* l, short* r);
     void nextSampleHLE(short* l, short* r);
     void setCIAVal(int val);
+    bool mute(int c);
     int play(int song);
     int stop();
     void lock(int chan, int time);
