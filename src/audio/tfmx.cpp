@@ -883,6 +883,7 @@ void TFMXPlayer::handleLoop(int c) {
   }
 }
 
+// you got to be trolling me
 inline short blepSyn(short* s, unsigned char pos) {
   const short* i=&sinc8Table[(255-pos)<<6];
   return (((i[0]*s[0])>>15)+
