@@ -104,10 +104,10 @@ static void processHLE(void* userdata, Uint8* stream, int len) {
   for (size_t i=0; i<runtotal; i++) {
     p.nextSampleHLE(&temp[0],&temp[1]);
 
-    //buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
-    //buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
-    buf[0][i*ar.channels]=temp[0];
-    buf[1][i*ar.channels]=temp[1];
+    buf[0][i*ar.channels]=(temp[0]+(temp[1]>>2))<<1;
+    buf[1][i*ar.channels]=(temp[1]+(temp[0]>>2))<<1;
+    //buf[0][i*ar.channels]=temp[0];
+    //buf[1][i*ar.channels]=temp[1];
   }
   if (dumpFile) {
     if (fwrite(stream,1,len,dump)<0) {
