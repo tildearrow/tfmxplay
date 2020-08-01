@@ -896,7 +896,7 @@ inline short blepSyn(short* s, unsigned char pos) {
           ((i[7]*s[7])>>15));
 }
 
-#define HLE_NUM_ITERS 4
+#define HLE_NUM_ITERS 1
 
 void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   int la, ra;
@@ -913,7 +913,7 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   }
   
   for (int i=0; i<4; i++) {
-    if (!chan[i].on) continue;
+    //if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
       chan[i].seek-=intAccum*HLE_NUM_ITERS;
       while (chan[i].seek<0) {
@@ -934,7 +934,11 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
         chan[i].s[4]=chan[i].s[5];
         chan[i].s[5]=chan[i].s[6];
         chan[i].s[6]=chan[i].s[7];
-        chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+        if (chan[i].on) {
+          chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+        } else {
+          chan[i].s[7]=0;
+        }
       }
     }
     if (chan[i].muted) continue;
