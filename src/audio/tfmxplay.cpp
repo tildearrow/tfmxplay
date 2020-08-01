@@ -454,6 +454,7 @@ int main(int argc, char** argv) {
           speed=70937;
         }
         p.setCIAVal(speed);
+        p.hleRate=float((double)targetSR/(double)sr);
         printf("CIA value: %d (%.2fHz)\n",speed,(double)targetSR/(double)speed);
         break;
       case '1':
