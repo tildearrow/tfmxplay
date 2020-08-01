@@ -922,6 +922,7 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
           handleLoop(i);
           chan[i].apos=0;
         }
+        chan[i].bp=(chan[i].seek<<8)/(chan[i].freq+1);
       }
     }
     if (chan[i].muted) continue;
@@ -934,9 +935,9 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
     chan[i].s[6]=chan[i].s[7];
     chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     if (i==0 || i==3) {
-      la+=blepSyn(chan[i].s,(chan[i].seek<<8)/chan[i].freq);
+      la+=blepSyn(chan[i].s,chan[i].bp);
     } else {
-      ra+=blepSyn(chan[i].s,(chan[i].seek<<8)/chan[i].freq);
+      ra+=blepSyn(chan[i].s,chan[i].bp);
     }
   }
   *l=la;

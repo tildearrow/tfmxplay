@@ -110,10 +110,11 @@ class TFMXPlayer {
     signed char vol;
     signed char nextvol;
     short s[8];
+    unsigned char bp;
     bool on;
     bool looping;
     bool muted;
-    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), on(false), looping(false), muted(false) {
+    TFMXChan(): pos(0), apos(0), seek(0), len(0), freq(0), vol(0), nextvol(0), bp(0), on(false), looping(false), muted(false) {
       for (int i=0; i<8; i++) s[i]=0;
     }
   } chan[8]; 
