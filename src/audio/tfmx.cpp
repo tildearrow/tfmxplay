@@ -896,6 +896,8 @@ inline short blepSyn(short* s, unsigned char pos) {
           ((i[7]*s[7])>>15));
 }
 
+#define HLE_NUM_ITERS 4
+
 void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   int la, ra;
   short newS;
@@ -913,27 +915,30 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   for (int i=0; i<4; i++) {
     if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
-      chan[i].seek-=intAccum;
-      if (chan[i].seek<0) {
+      chan[i].seek-=intAccum*HLE_NUM_ITERS;
+      while (chan[i].seek<0) {
         chan[i].seek+=chan[i].freq+1;
-        chan[i].apos++;
-        if (chan[i].apos>=(chan[i].len*2)) {
-          // interrupt
-          handleLoop(i);
-          chan[i].apos=0;
+        if (--chan[i].hleIter<=0) {
+          chan[i].hleIter=HLE_NUM_ITERS;
+          chan[i].apos++;
+          if (chan[i].apos>=(chan[i].len*2)) {
+            // interrupt
+            handleLoop(i);
+            chan[i].apos=0;
+          }
         }
-        chan[i].bp=(chan[i].seek<<8)/(chan[i].freq+1);
+        chan[i].s[0]=chan[i].s[1];
+        chan[i].s[1]=chan[i].s[2];
+        chan[i].s[2]=chan[i].s[3];
+        chan[i].s[3]=chan[i].s[4];
+        chan[i].s[4]=chan[i].s[5];
+        chan[i].s[5]=chan[i].s[6];
+        chan[i].s[6]=chan[i].s[7];
+        chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
       }
     }
     if (chan[i].muted) continue;
-    chan[i].s[0]=chan[i].s[1];
-    chan[i].s[1]=chan[i].s[2];
-    chan[i].s[2]=chan[i].s[3];
-    chan[i].s[3]=chan[i].s[4];
-    chan[i].s[4]=chan[i].s[5];
-    chan[i].s[5]=chan[i].s[6];
-    chan[i].s[6]=chan[i].s[7];
-    chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+    chan[i].bp=(chan[i].seek<<8)/(chan[i].freq+1);
     if (i==0 || i==3) {
       la+=blepSyn(chan[i].s,chan[i].bp);
     } else {
