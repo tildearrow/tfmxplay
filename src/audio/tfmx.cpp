@@ -832,6 +832,9 @@ void TFMXPlayer::nextTick() {
   // update freqs
   for (int i=0; i<4; i++) {
     chan[i].freq=(cstat[i].freq*(2048+cstat[i].detune))>>11;
+    if (chan[i].freq!=0) {
+      chan[i].hleIterC=chan[i].freq/hleRate;
+    }
     //if (chan[i].vol>0x40) printf("%d: volume too high! (%.2x)\n",i,chan[i].vol);
     
     if (cstat[i].locked) {
@@ -899,7 +902,7 @@ inline short blepSyn(short* s, unsigned char pos) {
 #define HLE_NUM_ITERS 4
 
 void TFMXPlayer::nextSampleHLE(short* l, short* r) {
-  int la, ra;
+  int la, ra, numIters;
   short newS;
   la=0; ra=0;
   fractAccum+=hleRate;
@@ -915,11 +918,11 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
   for (int i=0; i<4; i++) {
     //if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
-      chan[i].seek-=intAccum*HLE_NUM_ITERS;
+      chan[i].seek-=intAccum*chan[i].hleIterC;
       while (chan[i].seek<0) {
         chan[i].seek+=chan[i].freq+1;
         if (--chan[i].hleIter<=0) {
-          chan[i].hleIter=HLE_NUM_ITERS;
+          chan[i].hleIter=chan[i].hleIterC;
           if (chan[i].on) {
             chan[i].apos++;
             if (chan[i].apos>=(chan[i].len*2)) {
