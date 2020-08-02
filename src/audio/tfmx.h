@@ -103,14 +103,14 @@ enum TFMXMacroOps {
 class TFMXPlayer {
   struct TFMXChan {
     int pos;
-    int apos;
+    unsigned int apos;
     int seek;
     unsigned int len;
     unsigned short freq;
     signed char vol;
     signed char nextvol;
     short s[8];
-    unsigned char bp;
+    short bp;
     unsigned char hleIter, hleIterC;
     bool on;
     bool looping;

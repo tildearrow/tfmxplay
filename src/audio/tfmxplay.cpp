@@ -76,7 +76,7 @@ void finish() {
   }
 }
 
-static void handleTerm(int data) {
+static void handleTerm(int) {
   quit=true;
   printf("quit!\n");
   SDL_CloseAudioDevice(ai);
@@ -90,16 +90,14 @@ static void handleTerm(int data) {
   exit(0);
 }
 
-static void processHLE(void* userdata, Uint8* stream, int len) {
+static void processHLE(void*, Uint8* stream, int len) {
   short* buf[2];
   short temp[2];
-  int wc;
-  int writable;
   unsigned int nframes=len/(2*ar.channels);
   buf[0]=(short*)stream;
   buf[1]=&buf[0][1];
 
-  int runtotal=nframes;
+  size_t runtotal=nframes;
 
   for (size_t i=0; i<runtotal; i++) {
     p.nextSampleHLE(&temp[0],&temp[1]);
@@ -119,11 +117,9 @@ static void processHLE(void* userdata, Uint8* stream, int len) {
   }
 }
 
-static void process(void* userdata, Uint8* stream, int len) {
+static void process(void*, Uint8* stream, int len) {
   short* buf[2];
   short temp[2];
-  int wc;
-  int writable;
   unsigned int nframes=len/(2*ar.channels);
   buf[0]=(short*)stream;
   buf[1]=&buf[0][1];
@@ -132,7 +128,7 @@ static void process(void* userdata, Uint8* stream, int len) {
   blip_set_rates(bb[1],targetSR,sr);
   p.hleRate=float((double)targetSR/(double)sr);
   
-  int runtotal=blip_clocks_needed(bb[0],nframes);
+  size_t runtotal=blip_clocks_needed(bb[0],nframes);
 
   for (size_t i=0; i<runtotal; i++) {
     p.nextSample(&temp[0],&temp[1]);

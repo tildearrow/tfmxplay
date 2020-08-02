@@ -711,7 +711,8 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mOneShot:
-        chan[i].looping=false;
+        cstat[i].postDMALen=0;
+        //chan[i].looping=false;
         break;
       default:
         printf("%d: unhandled opcode %x (%s), %.2x%.2x%.2x\n",i,m.op,macroName[m.op],m.data[0],m.data[1],m.data[2]);
@@ -886,7 +887,6 @@ void TFMXPlayer::handleLoop(int c) {
   }
 }
 
-// you got to be trolling me
 inline short blepSyn(short* s, unsigned char pos) {
   const short* i=&sinc8Table[(255-pos)<<6];
   return (((i[0]*s[0])>>15)+
@@ -899,11 +899,8 @@ inline short blepSyn(short* s, unsigned char pos) {
           ((i[7]*s[7])>>15));
 }
 
-#define HLE_NUM_ITERS 4
-
 void TFMXPlayer::nextSampleHLE(short* l, short* r) {
-  int la, ra, numIters;
-  short newS;
+  int la, ra;
   la=0; ra=0;
   fractAccum+=hleRate;
   intAccum=fractAccum;
