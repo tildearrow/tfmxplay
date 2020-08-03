@@ -11,7 +11,7 @@
 #include <libdrm/drm.h>
 #endif
 
-#include "../ta-time.h"
+#include "ta-time.h"
 
 #include "blip_buf.h"
 #include "tfmx.h"
