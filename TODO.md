@@ -1,9 +1,5 @@
-# tfmxplay
+# to-do
 
-- accurate vibratos (almost there)
+- accurate dual vibratos
 - song fading
 - lots of other things
-
-# turtest
-
-- everything

@@ -1,3 +1,7 @@
-# turtest
+# tfmxplay
 
-this is a secret project! for the tfmxplay README, see [README\_tfmxplay.md](README_tfmxplay.md).
+this is my own clean-room design TFMX player.
+
+the difference between this player and the other ones is that no reverse engineering, obfuscated code, assembly source or emulation is involved; instead relying upon existing documentation, guesswork and ABX tests for most of it. hence "clean-room design".
+
+the player strives to meet Turrican 2 standards.
