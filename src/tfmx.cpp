@@ -751,19 +751,10 @@ void TFMXPlayer::nextTick() {
     curStep++;
   }
   // update macros
+  bool runRest;
   for (int i=0; i<4; i++) {
+    runRest=true;
     if (cstat[i].index!=-1) {
-      if (cstat[i].addBeginC>0) {
-        if (cstat[i].addBeginDir) {
-          cstat[i].postDMAAdd-=cstat[i].addBeginAmt;
-        } else {
-          cstat[i].postDMAAdd+=cstat[i].addBeginAmt;
-        }
-        if (--cstat[i].addBegin<=0) {
-          cstat[i].addBegin=cstat[i].addBeginC;
-          cstat[i].addBeginDir=!cstat[i].addBeginDir;
-        }
-      }
       if (cstat[i].vibTimeC>0) {
         if (cstat[i].vibDir) {
           cstat[i].detune-=cstat[i].vibAmt;
@@ -773,24 +764,6 @@ void TFMXPlayer::nextTick() {
         if (--cstat[i].vibTime<=0) {
           cstat[i].vibTime=cstat[i].vibTimeC;
           cstat[i].vibDir=!cstat[i].vibDir;
-        }
-      }
-      if (cstat[i].envActive) {
-        if (--cstat[i].envTime<0) {
-          cstat[i].envTime=cstat[i].envTimeC;
-          if (chan[i].vol>cstat[i].envTarget) {
-            chan[i].vol-=cstat[i].envAmt;
-            if (chan[i].vol<=cstat[i].envTarget) {
-              chan[i].vol=cstat[i].envTarget;
-              cstat[i].envActive=false;
-            }
-          } else {
-            chan[i].vol+=cstat[i].envAmt;
-            if (chan[i].vol>=cstat[i].envTarget) {
-              chan[i].vol=cstat[i].envTarget;
-              cstat[i].envActive=false;
-            }
-          }
         }
       }
       if (cstat[i].portaActive) {
@@ -819,18 +792,53 @@ void TFMXPlayer::nextTick() {
         cstat[i].changeVol=false;
         chan[i].vol=chan[i].nextvol;
       }
-      if (cstat[i].waitingDMA) continue;
-      if (cstat[i].waitingKeyUp) {
-        if (cstat[i].keyon) {
-          if (cstat[i].tim==-10) continue;
-          if (--cstat[i].tim>=0) continue;
+      if (cstat[i].waitingDMA) runRest=false;
+      if (runRest) {
+        if (cstat[i].waitingKeyUp) {
+          if (cstat[i].keyon) {
+            if (cstat[i].tim==-10) runRest=false;
+            if (runRest) {
+              if (--cstat[i].tim>=0) runRest=false;
+            }
+          }
+        } else {
+          if (--cstat[i].tim>=0) runRest=false;
         }
-      } else {
-        if (--cstat[i].tim>=0) continue;
       }
-      runMacro(i);
-      if (cstat[i].offReset) {
-        reset(i);
+      if (runRest) {
+        runMacro(i);
+        if (cstat[i].offReset) {
+          reset(i);
+        }
+      }
+      if (cstat[i].addBeginC>0) {
+        if (cstat[i].addBeginDir) {
+          cstat[i].postDMAAdd-=cstat[i].addBeginAmt;
+        } else {
+          cstat[i].postDMAAdd+=cstat[i].addBeginAmt;
+        }
+        if (--cstat[i].addBegin<=0) {
+          cstat[i].addBegin=cstat[i].addBeginC;
+          cstat[i].addBeginDir=!cstat[i].addBeginDir;
+        }
+      }
+      if (cstat[i].envActive) {
+        if (--cstat[i].envTime<0) {
+          cstat[i].envTime=cstat[i].envTimeC;
+          if (chan[i].vol>cstat[i].envTarget) {
+            chan[i].vol-=cstat[i].envAmt;
+            if (chan[i].vol<=cstat[i].envTarget) {
+              chan[i].vol=cstat[i].envTarget;
+              cstat[i].envActive=false;
+            }
+          } else {
+            chan[i].vol+=cstat[i].envAmt;
+            if (chan[i].vol>=cstat[i].envTarget) {
+              chan[i].vol=cstat[i].envTarget;
+              cstat[i].envActive=false;
+            }
+          }
+        }
       }
     }
   }
