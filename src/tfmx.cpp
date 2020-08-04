@@ -178,17 +178,18 @@ int TFMXPlayer::stop() {
 // 2034 for NTSC prev
 // 2033.832644628099173553719008 for NTSC
 // 2015.28125 for PAL
-unsigned short getPeriod(unsigned char note) {
-  return 2033.832644628099173553719008/(pow(2,(float)note/12.0f));
+unsigned short getPeriod(unsigned char note, short detune) {
+  return ((int)(2033.832644628099173553719008/(pow(2,(float)note/12.0f)))*(256+detune))>>8;
 }
 
-void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans) {
+void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol, unsigned char c, int trans, short detune) {
   cstat[c].index=macro;
   cstat[c].pos=0;
   cstat[c].tim=0;
   cstat[c].vol=vol;
   cstat[c].oldnote=cstat[c].note;
   cstat[c].note=(note&63)+trans;
+  cstat[c].detune=detune;
   cstat[c].keyon=true;
   cstat[c].waitingDMA=0;
   cstat[c].waitingKeyUp=false;
@@ -405,7 +406,7 @@ bool TFMXPlayer::updateTrack(int tr) {
             cstat[item.chan].vibTime=item.ins>>1;
             cstat[item.chan].vibAmt=item.detune;
             cstat[item.chan].vibDir=false;
-            cstat[item.chan].detune=0;
+            cstat[item.chan].vibVal=0;
           }
           break;
         case pEnve:
@@ -451,7 +452,7 @@ bool TFMXPlayer::updateTrack(int tr) {
         default:
           if ((item.note&0xc0)==0x80) {
             if (!cstat[item.chan].locked) {
-              playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans);
+              playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans,0);
             }
             tstat[tr].tim=item.detune;
             getMeOut=true;
@@ -460,7 +461,7 @@ bool TFMXPlayer::updateTrack(int tr) {
               cstat[item.chan].portaActive=true;
               cstat[item.chan].portaTimeC=item.ins;
               cstat[item.chan].portaTime=0;
-              cstat[item.chan].portaTarget=getPeriod((item.note&63)+3+tstat[tr].trans);
+              cstat[item.chan].portaTarget=getPeriod((item.note&63)+3+tstat[tr].trans,cstat[item.chan].detune);
               if (cstat[item.chan].portaTarget<cstat[item.chan].freq) {
                 cstat[item.chan].portaAmt=-item.detune;
               } else {
@@ -469,7 +470,7 @@ bool TFMXPlayer::updateTrack(int tr) {
             }
           } else {
             if (!cstat[item.chan].locked) {
-              playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans);
+              playMacro(item.ins,item.note,item.vol,item.chan,tstat[tr].trans,item.detune);
             }
           }
           break;
@@ -482,7 +483,7 @@ bool TFMXPlayer::updateTrack(int tr) {
 
 void TFMXPlayer::reset(int i) {
   cstat[i].offReset=false;
-  cstat[i].detune=0;
+  cstat[i].vibVal=0;
   chan[i].pos=0;
   chan[i].apos=0;
   chan[i].on=false;
@@ -590,7 +591,7 @@ void TFMXPlayer::runMacro(int i) {
       case mSetNote:
         // TODO detune
         if (cstat[i].portaActive) {
-          cstat[i].portaTarget=getPeriod(m.data[0]+3);
+          cstat[i].portaTarget=getPeriod(m.data[0]+3,(signed short)((m.data[1]<<8)|(m.data[2])));
           if (cstat[i].portaAmt<0) {
             if (cstat[i].portaTarget>cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
@@ -601,13 +602,13 @@ void TFMXPlayer::runMacro(int i) {
             }
           }
         } else {
-          cstat[i].freq=getPeriod(m.data[0]+3);
+          cstat[i].freq=getPeriod(m.data[0]+3,(signed short)((m.data[1]<<8)|(m.data[2])));
         }
         if (chan[i].on) return;
         break;
       case mAddNote:
         if (cstat[i].portaActive) {
-          cstat[i].portaTarget=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+          cstat[i].portaTarget=getPeriod(cstat[i].note+(signed char)m.data[0]+3,(signed short)((m.data[1]<<8)|(m.data[2]))+cstat[i].detune);
           if (cstat[i].portaAmt<0) {
             if (cstat[i].portaTarget>cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
@@ -618,7 +619,7 @@ void TFMXPlayer::runMacro(int i) {
             }
           }
         } else {
-          cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
+          cstat[i].freq=getPeriod(cstat[i].note+(signed char)m.data[0]+3,(signed short)((m.data[1]<<8)|(m.data[2]))+cstat[i].detune);
         }
         if (chan[i].on) return;
         break;
@@ -627,7 +628,8 @@ void TFMXPlayer::runMacro(int i) {
         return;
         break;
       case mSetPrevNote:
-        cstat[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+3);
+        // TODO: do we log detune?
+        cstat[i].freq=getPeriod(cstat[i].oldnote+(signed char)m.data[0]+3,0);
         return;
         break;
       case mOn:
@@ -649,7 +651,7 @@ void TFMXPlayer::runMacro(int i) {
         cstat[i].vibTime=m.data[0]>>1;
         cstat[i].vibAmt=m.data[2];
         cstat[i].vibDir=false;
-        cstat[i].detune=0;
+        cstat[i].vibVal=0;
         break;
       case mPorta:
         cstat[i].portaActive=true;
@@ -760,9 +762,9 @@ void TFMXPlayer::nextTick() {
     if (cstat[i].index!=-1) {
       if (cstat[i].vibTimeC>0) {
         if (cstat[i].vibDir) {
-          cstat[i].detune-=cstat[i].vibAmt;
+          cstat[i].vibVal-=cstat[i].vibAmt;
         } else {
-          cstat[i].detune+=cstat[i].vibAmt;
+          cstat[i].vibVal+=cstat[i].vibAmt;
         }
         if (--cstat[i].vibTime<=0) {
           cstat[i].vibTime=cstat[i].vibTimeC;
@@ -847,7 +849,7 @@ void TFMXPlayer::nextTick() {
   }
   // update freqs
   for (int i=0; i<4; i++) {
-    chan[i].freq=(cstat[i].freq*(2048+cstat[i].detune))>>11;
+    chan[i].freq=(cstat[i].freq*(2048+cstat[i].vibVal))>>11;
     if (chan[i].freq!=0) {
       chan[i].hleIterC=chan[i].freq/hleRate;
     }

@@ -484,7 +484,7 @@ int main(int argc, char** argv) {
       default:
         if (c>='A') {
           p.lock(3,32);
-          p.playMacro(c-'A',20,15,3,0);
+          p.playMacro(c-'A',20,15,3,0,0);
         }
         break;
     }
