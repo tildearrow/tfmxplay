@@ -460,8 +460,8 @@ bool TFMXPlayer::updateTrack(int tr) {
               cstat[item.chan].portaActive=true;
               cstat[item.chan].portaTimeC=item.ins;
               cstat[item.chan].portaTime=0;
-              cstat[item.chan].portaTarget=(item.note&63)+3+tstat[tr].trans;
-              if (getPeriod(cstat[item.chan].portaTarget)<cstat[item.chan].freq) {
+              cstat[item.chan].portaTarget=getPeriod((item.note&63)+3+tstat[tr].trans);
+              if (cstat[item.chan].portaTarget<cstat[item.chan].freq) {
                 cstat[item.chan].portaAmt=-item.detune;
               } else {
                 cstat[item.chan].portaAmt=item.detune;
@@ -590,13 +590,13 @@ void TFMXPlayer::runMacro(int i) {
       case mSetNote:
         // TODO detune
         if (cstat[i].portaActive) {
-          cstat[i].portaTarget=m.data[0]+3;
+          cstat[i].portaTarget=getPeriod(m.data[0]+3);
           if (cstat[i].portaAmt<0) {
-            if (getPeriod(cstat[i].portaTarget)>cstat[i].freq) {
+            if (cstat[i].portaTarget>cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
             }
           } else {
-            if (getPeriod(cstat[i].portaTarget)<cstat[i].freq) {
+            if (cstat[i].portaTarget<cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
             }
           }
@@ -607,13 +607,13 @@ void TFMXPlayer::runMacro(int i) {
         break;
       case mAddNote:
         if (cstat[i].portaActive) {
-          cstat[i].portaTarget=cstat[i].note+(signed char)m.data[0]+3;
+          cstat[i].portaTarget=getPeriod(cstat[i].note+(signed char)m.data[0]+3);
           if (cstat[i].portaAmt<0) {
-            if (getPeriod(cstat[i].portaTarget)>cstat[i].freq) {
+            if (cstat[i].portaTarget>cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
             }
           } else {
-            if (getPeriod(cstat[i].portaTarget)<cstat[i].freq) {
+            if (cstat[i].portaTarget<cstat[i].freq) {
               cstat[i].portaAmt=-cstat[i].portaAmt;
             }
           }
@@ -776,15 +776,15 @@ void TFMXPlayer::nextTick() {
           cstat[i].freq=(cstat[i].freq*(256+cstat[i].portaAmt))>>8;
           if (cstat[i].portaTarget!=-1) {
             if (cstat[i].portaAmt>0) {
-              if (cstat[i].freq>getPeriod(cstat[i].portaTarget)) {
-                cstat[i].freq=getPeriod(cstat[i].portaTarget);
-                cstat[i].note=cstat[i].portaTarget;
+              if (cstat[i].freq>cstat[i].portaTarget) {
+                cstat[i].freq=cstat[i].portaTarget;
+                //cstat[i].note=cstat[i].portaTarget;
                 cstat[i].portaActive=false;
               }
             } else {
-              if (cstat[i].freq<getPeriod(cstat[i].portaTarget)) {
-                cstat[i].freq=getPeriod(cstat[i].portaTarget);
-                cstat[i].note=cstat[i].portaTarget;
+              if (cstat[i].freq<cstat[i].portaTarget) {
+                cstat[i].freq=cstat[i].portaTarget;
+                //cstat[i].note=cstat[i].portaTarget;
                 cstat[i].portaActive=false;
               }
             }
