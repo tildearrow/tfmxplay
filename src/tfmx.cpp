@@ -633,6 +633,10 @@ void TFMXPlayer::runMacro(int i) {
       case mOn:
         chan[i].on=true;
         break;
+      case mOff:
+        chan[i].on=false;
+        return;
+        break;
       case mCont:
         cstat[i].index=m.data[0];
         cstat[i].pos=((m.data[1]<<8)|(m.data[2]));
