@@ -6,9 +6,15 @@
   - the keys sound too short (late AddBegin fixes this)
   - but the dragon needs short
   - the bass envelope is not proper (noticeable during the solo). I must be doing something wrong.
+  - after implementing detune, the ending bit has changed pitch
+    - in Turrican 2 it is at ~980Hz
+    - after the change it is ~1050Hz
+    - TantrisOST is at ~1050Hz too
+    - TODO: test with TFMX editor
 - fix world 5
   - the kick erm heartbeat has a different pitch
     - implementing detune may solve it
+    - almost there
   - the wind has a wrong pitch. i am not even sure how is this done
   - to be checked in the official TFMX editor
 - 7-voice playback
