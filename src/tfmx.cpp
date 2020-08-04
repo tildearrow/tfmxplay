@@ -634,8 +634,11 @@ void TFMXPlayer::runMacro(int i) {
         chan[i].on=true;
         break;
       case mOff:
-        chan[i].on=false;
-        return;
+        // TODO: check if this is TFMX behavior!
+        if (chan[i].on) {
+          chan[i].on=false;
+          return;
+        }
         break;
       case mCont:
         cstat[i].index=m.data[0];
@@ -876,6 +879,7 @@ void TFMXPlayer::handleLoop(int c) {
   }
   if (cstat[c].postDMAAdd!=0) {
     chan[c].pos+=cstat[c].postDMAAdd;
+    if (chan[c].pos<0) chan[c].pos=0;
     cstat[c].postDMAAdd=0;
   }
   if (cstat[c].waitingDMA>0) {
