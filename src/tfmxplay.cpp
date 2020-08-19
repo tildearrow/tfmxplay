@@ -305,10 +305,10 @@ int main(int argc, char** argv) {
       return 1;
     }
     drm_version ver;
-    if (ioctl(syncfd,DRM_IOCTL_VERSION,&ver)<0) {
+    /*if (ioctl(syncfd,DRM_IOCTL_VERSION,&ver)<0) {
       printf("could not get version.\n");
       return 1;
-    }
+    }*/
   }
 #endif
 
