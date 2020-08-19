@@ -55,6 +55,15 @@ const char* noteName[]={
   "C-5", "C#5", "D-5", "D#5", "E-5", "F-5", "F#5", "G-5", "G#5", "A-5", "A#5", "B-5",
 };
 
+#ifdef _WIN32
+unsigned short ntohs(unsigned short orig) {
+  return (orig>>8)|(orig<<8);
+}
+unsigned int ntohl(unsigned int orig) {
+  return ((orig&0xff)<<24)|((orig&0xff00)<<8)|((orig&0xff0000)>>8)|((orig&0xff000000)>>24);
+}
+#endif
+
 bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   FILE* f;
   // smpl
