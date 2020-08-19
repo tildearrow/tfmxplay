@@ -1,14 +1,20 @@
 #include <stdio.h>
+#ifdef _WIN32
+#else
 #include <signal.h>
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#endif
 #include <string>
 #include <vector>
 #include <SDL2/SDL.h>
 #ifdef _SYNC_VBLANK
+#ifdef _WIN32
+#else
 #include <fcntl.h>
 #include <libdrm/drm.h>
+#endif
 #endif
 
 #include "ta-time.h"
