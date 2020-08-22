@@ -1,5 +1,6 @@
 #include <stdio.h>
 #ifdef _WIN32
+#include <windows.h>
 #else
 #include <signal.h>
 #include <unistd.h>
@@ -380,7 +381,18 @@ int main(int argc, char** argv) {
 
   setvbuf(stdin,NULL,_IONBF,1);
 
-#ifndef _WIN32
+#ifdef _WIN32
+  HANDLE winin=GetStdHandle(STD_INPUT_HANDLE);
+  HANDLE winout=GetStdHandle(STD_OUTPUT_HANDLE);
+  int termprop=0;
+  int termpropi=0;
+  GetConsoleMode(winout,(LPDWORD)&termprop);
+  GetConsoleMode(winin,(LPDWORD)&termpropi);
+  termprop|=ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  termpropi&=~ENABLE_LINE_INPUT;
+  SetConsoleMode(winout,termprop);
+  SetConsoleMode(winin,termpropi);
+#else
   if (tcgetattr(0,&termprop)!=0) {
     return 1;
   }
@@ -418,6 +430,7 @@ int main(int argc, char** argv) {
     if (c==EOF) break;
     switch (c) {
       case '\n':
+      case '\r':
         p.trace=!p.trace;
         printf("frame trace: %s\n",truth[p.trace]);
         break;
