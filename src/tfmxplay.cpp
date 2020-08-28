@@ -1,5 +1,6 @@
 #include <stdio.h>
 #ifdef _WIN32
+#include <windows.h>
 #else
 #include <signal.h>
 #include <unistd.h>
@@ -8,7 +9,11 @@
 #endif
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <SDL.h>
+#else
 #include <SDL2/SDL.h>
+#endif
 #ifdef _SYNC_VBLANK
 #ifdef _WIN32
 #else
@@ -64,9 +69,12 @@ TFMXPlayer p;
 
 int defCIAVal;
 
+#ifdef _WIN32
+#else
 struct sigaction intsa;
 struct termios termprop;
 struct termios termpropold;
+#endif
 
 #ifdef _SYNC_VBLANK
 int syncfd;
@@ -78,10 +86,12 @@ const char* truth[]={
 };
 
 void finish() {
+#ifndef _WIN32
   if (tcsetattr(0,TCSAFLUSH,&termpropold)!=0) {
     printf("WARNING: FAILURE TO SET FLAGS TO QUIT!\n");
     return;
   }
+#endif
 }
 
 static void handleTerm(int) {
@@ -354,7 +364,7 @@ int main(int argc, char** argv) {
     ac.callback=process;
   }
   ac.userdata=NULL;
-  ai=SDL_OpenAudioDevice(SDL_GetAudioDeviceName(0,0),0,&ac,&ar,SDL_AUDIO_ALLOW_ANY_CHANGE);
+  ai=SDL_OpenAudioDevice(SDL_GetAudioDeviceName(0,0),0,&ac,&ar,SDL_AUDIO_ALLOW_CHANNELS_CHANGE|SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
   sr=ar.freq;
   if (ntsc) {
     targetSR=3579545;
@@ -380,12 +390,27 @@ int main(int argc, char** argv) {
   p.play(songid);
   SDL_PauseAudioDevice(ai,0);
   
+#ifndef _WIN32
   sigemptyset(&intsa.sa_mask);
   intsa.sa_flags=0;
   intsa.sa_handler=handleTerm;
   sigaction(SIGINT,&intsa,NULL);
-  
+#endif  
+
   setvbuf(stdin,NULL,_IONBF,1);
+
+#ifdef _WIN32
+  HANDLE winin=GetStdHandle(STD_INPUT_HANDLE);
+  HANDLE winout=GetStdHandle(STD_OUTPUT_HANDLE);
+  int termprop=0;
+  int termpropi=0;
+  GetConsoleMode(winout,(LPDWORD)&termprop);
+  GetConsoleMode(winin,(LPDWORD)&termpropi);
+  termprop|=ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  termpropi&=~ENABLE_LINE_INPUT;
+  SetConsoleMode(winout,termprop);
+  SetConsoleMode(winin,termpropi);
+#else
   if (tcgetattr(0,&termprop)!=0) {
     return 1;
   }
@@ -395,6 +420,7 @@ int main(int argc, char** argv) {
   if (tcsetattr(0,TCSAFLUSH,&termprop)!=0) {
     return 1;
   }
+#endif
   
   //p.lock(0,2000000);
   //p.lock(1,2000000);
@@ -422,6 +448,7 @@ int main(int argc, char** argv) {
     if (c==EOF) break;
     switch (c) {
       case '\n':
+      case '\r':
         p.trace=!p.trace;
         printf("frame trace: %s\n",truth[p.trace]);
         break;

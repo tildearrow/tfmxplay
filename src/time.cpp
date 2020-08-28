@@ -73,11 +73,13 @@ std::string tstos(struct timespec ts) {
   return ret;
 }
 
+#ifndef _WIN32
 struct timespec curTime(clockid_t clockSource) {
   struct timespec ret;
   clock_gettime(clockSource,&ret);
   return ret;
 }
+#endif
 
 bool operator >(const struct timespec& l, const struct timespec& r) {
   if (l.tv_sec==r.tv_sec) {
