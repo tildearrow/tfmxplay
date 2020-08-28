@@ -62,6 +62,8 @@ int songid;
 
 TFMXPlayer p;
 
+int defCIAVal;
+
 struct sigaction intsa;
 struct termios termprop;
 struct termios termpropold;
@@ -214,6 +216,16 @@ bool parDump(string) {
   return true;
 }
 
+bool parSpeed(string v) {
+  try {
+    defCIAVal=std::stoi(v);
+  } catch (std::exception& e) {
+    printf("type a number, silly.\n");
+    return false;
+  }
+  return true;
+}
+
 void initParams() {
   params.push_back(Param("h","help",false,parHelp,"","display this help"));
 
@@ -221,6 +233,7 @@ void initParams() {
   params.push_back(Param("n","ntsc",false,parNTSC,"","use NTSC rate"));
   params.push_back(Param("l","hle",false,parHLE,"","use high-level emulation (lower quality but much faster)"));
   params.push_back(Param("d","dump",false,parDump,"","dump 16-bit stereo raw output to tfmx.raw"));
+  params.push_back(Param("S","speed",true,parSpeed,"","set speed in clock/2 cycles"));
 
 #ifdef _SYNC_VBLANK
   params.push_back(Param("V","vblank",false,parVBlank,"","sync to VBlank"));
@@ -229,6 +242,7 @@ void initParams() {
 
 int main(int argc, char** argv) {
   string mdat, smpl;
+  defCIAVal=0;
   ntsc=false;
   dumpFile=false;
   songid=0;
@@ -349,7 +363,11 @@ int main(int argc, char** argv) {
     targetSR=3546895;
     speed=70937;
   }
-  p.setCIAVal(speed);
+  if (defCIAVal) {
+    p.setCIAVal(defCIAVal);
+  } else {
+    p.setCIAVal(speed);
+  }
 
   bb[0]=blip_new(32768);
   bb[1]=blip_new(32768);
