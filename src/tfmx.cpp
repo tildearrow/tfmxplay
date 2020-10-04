@@ -169,7 +169,7 @@ int TFMXPlayer::play(int song) {
   curSong=song;
   speed=head.songSpeed[song];
 
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<8; i++) {
     reset(i);
   }
 
@@ -203,6 +203,8 @@ void TFMXPlayer::playMacro(signed char macro, signed char note, signed char vol,
   cstat[c].waitingDMA=0;
   cstat[c].waitingKeyUp=false;
   cstat[c].loopCount=0;
+
+  if (numChan<(c+1)) numChan=c+1;
 }
 
 void TFMXPlayer::updateRow(int row) {
@@ -766,7 +768,7 @@ void TFMXPlayer::nextTick() {
   }
   // update macros
   bool runRest;
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<8; i++) {
     runRest=true;
     if (cstat[i].index!=-1) {
       if (cstat[i].vibTimeC>0) {
@@ -857,7 +859,7 @@ void TFMXPlayer::nextTick() {
     }
   }
   // update freqs
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<8; i++) {
     chan[i].freq=(cstat[i].freq*(2048+cstat[i].vibVal))>>11;
     if (chan[i].freq!=0) {
       chan[i].hleIterC=chan[i].freq/hleRate;
@@ -872,15 +874,15 @@ void TFMXPlayer::nextTick() {
   }
   // trace
   if (traceS) {
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<numChan; i++) {
       printf("%5x:%4x  ",chan[i].pos,chan[i].len);
     }
     printf("\n");
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<numChan; i++) {
       printf("/%.4x  v%.2x  ",chan[i].freq,chan[i].vol);
     }
     printf("\n");
-    for (int i=0; i<4; i++) {
+    for (int i=0; i<numChan; i++) {
       printf("%.5x  %s  ",chan[i].apos,chan[i].on?("\x1b[1;32m ON\x1b[m"):("\x1b[1;31mOFF\x1b[m"));
     }
     printf("\n\x1b[3A\x1b[J");
@@ -939,7 +941,7 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
     nextTick();
   }
   
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<numChan; i++) {
     //if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
       chan[i].seek-=intAccum*chan[i].hleIterC;
@@ -972,10 +974,10 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
     }
     if (chan[i].muted) continue;
     chan[i].bp=(chan[i].seek<<8)/(chan[i].freq+1);
-    if (i==0 || i==3) {
-      la+=blepSyn(chan[i].s,chan[i].bp);
-    } else {
+    if ((i&1)^((i&2)>>1)) {
       ra+=blepSyn(chan[i].s,chan[i].bp);
+    } else {
+      la+=blepSyn(chan[i].s,chan[i].bp);
     }
   }
   *l=la;
@@ -990,7 +992,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
     nextTick();
   }
   
-  for (int i=0; i<4; i++) {
+  for (int i=0; i<numChan; i++) {
     if (!chan[i].on) continue;
     if (chan[i].freq>=100) {
       --chan[i].seek;
@@ -1005,7 +1007,7 @@ void TFMXPlayer::nextSample(short* l, short* r) {
       }
     }
     if (chan[i].muted) continue;
-    if (i==0 || i==3) {
+    if ((i&1)^((i&2)>>1)) {
       la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     } else {
       ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
