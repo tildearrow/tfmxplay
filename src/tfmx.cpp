@@ -890,6 +890,14 @@ void TFMXPlayer::nextTick() {
 }
 
 void TFMXPlayer::handleLoop(int c) {
+  if (cstat[c].waitingDMA>0) {
+    if (trace) printf("\x1b[36m- subtick %d/%d\x1b[m\n",ciaVal-ciaCount,ciaVal);
+    cstat[c].waitingDMA--;
+    if (traceC[c]) printf("%d: DMA reach\n",c);
+    if (cstat[c].waitingDMA==0) {
+      runMacro(c);
+    }
+  }
   if (cstat[c].postDMAPos!=-1) {
     chan[c].pos=cstat[c].postDMAPos;
     cstat[c].postDMAPos=-1;
@@ -902,14 +910,6 @@ void TFMXPlayer::handleLoop(int c) {
     chan[c].pos+=cstat[c].postDMAAdd;
     if (chan[c].pos<0) chan[c].pos=0;
     cstat[c].postDMAAdd=0;
-  }
-  if (cstat[c].waitingDMA>0) {
-    if (trace) printf("\x1b[36m- subtick %d/%d\x1b[m\n",ciaVal-ciaCount,ciaVal);
-    cstat[c].waitingDMA--;
-    if (traceC[c]) printf("%d: DMA reach\n",c);
-    if (cstat[c].waitingDMA==0) {
-      runMacro(c);
-    }
   }
   if (!chan[c].looping) {
     chan[c].on=false;
@@ -1008,9 +1008,9 @@ void TFMXPlayer::nextSample(short* l, short* r) {
     }
     if (chan[i].muted) continue;
     if ((i&1)^((i&2)>>1)) {
-      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
-    } else {
       ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+    } else {
+      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
     }
   }
   *l=la;
