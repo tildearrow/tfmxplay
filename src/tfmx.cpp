@@ -68,7 +68,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   FILE* f;
   // smpl
   printf("reading samples...\n");
-  f=fopen(smpla,"r");
+  f=fopen(smpla,"rb");
   if (f==NULL) {
     perror("fail");
     return false;
@@ -82,7 +82,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
 
   // mdat
   printf("reading song data...\n");
-  f=fopen(mdata,"r");
+  f=fopen(mdata,"rb");
   if (f==NULL) {
     perror("fail");
     return false;
@@ -128,12 +128,16 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   fread(track,1,2*8*128,f);
   
   // read patterns
-  int s=0;
+  int s;
   for (int i=0; i<128; i++) {
     fseek(f,patPoint[i],SEEK_SET);
     s=0;
     while (true) {
-      fread(&pat[i][s],sizeof(TFMXPatData),1,f);
+      if (fread(&pat[i][s],1,4,f)<4) {
+        perror("what?");
+	return false;
+      }
+      
       if (pat[i][s].note==0xf0) break;
       s++;
       if (s>255) break;
@@ -143,7 +147,6 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
   
   // read macros
   for (int i=0; i<128; i++) {
-    printf("at %x\n",patPoint[i]);
     if (patPoint[i]==0) {
       // write empty macro
       macro[i][0].op=mStop;
