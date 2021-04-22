@@ -135,7 +135,7 @@ bool TFMXPlayer::load(const char* mdata, const char* smpla) {
     while (true) {
       if (fread(&pat[i][s],1,4,f)<4) {
         perror("what?");
-	return false;
+        break;
       }
       
       if (pat[i][s].note==0xf0) break;
