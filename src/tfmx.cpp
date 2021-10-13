@@ -969,7 +969,11 @@ void TFMXPlayer::nextSampleHLE(short* l, short* r) {
         chan[i].s[5]=chan[i].s[6];
         chan[i].s[6]=chan[i].s[7];
         if (chan[i].on) {
-          chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+          if (chan[i].pos+chan[i].apos>=smplLen) {
+            chan[i].s[7]=(smpl[smplLen-1]*chan[i].vol);
+          } else {
+            chan[i].s[7]=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+          }
         } else {
           chan[i].s[7]=0;
         }
@@ -1011,9 +1015,17 @@ void TFMXPlayer::nextSample(short* l, short* r) {
     }
     if (chan[i].muted) continue;
     if ((i&1)^((i&2)>>1)) {
-      ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      if (chan[i].pos+chan[i].apos>=smplLen) {
+        ra+=(smpl[smplLen-1]*chan[i].vol);
+      } else {
+        ra+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      }
     } else {
-      la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      if (chan[i].pos+chan[i].apos>=smplLen) {
+        la+=(smpl[smplLen-1]*chan[i].vol);
+      } else {
+        la+=(smpl[chan[i].pos+chan[i].apos]*chan[i].vol);
+      }
     }
   }
   *l=la;
